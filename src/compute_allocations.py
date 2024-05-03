@@ -3,8 +3,7 @@ import numpy as np
 import os
 import pickle
 import sys
-sys.path.append("/mnt/nfs/scratch1/jpayan/RAU")
-from solve_usw import solve_usw_gurobi
+from allocation_code import solve_usw_gurobi
 
 dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ads": "Advertising", "cs": "cs"}
 
@@ -24,8 +23,8 @@ def load_dset(dset_name, data_dir):
         loads = 4 * np.ones(central_estimate.shape[0])
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
-        covs = np.ones(central_estimate.shape[1]) # every user gets assigned an ad campaign
-        loads = central_estimate.shape[1] * np.ones(central_estimate.shape[0]) # There is no limit on how many times you can show any ad campaign
+        covs = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
+        loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
     elif dset_name == "cs":
         central_estimate = np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))
         covs = 2 * np.ones(central_estimate.shape[1])
@@ -49,6 +48,9 @@ def main(args):
     # Save the results to outputs/{AAMAS, Advertising, cs}
     if alloc_type == "exp_usw_max":
         _, alloc = solve_usw_gurobi(central_estimate, covs, loads)
+    elif alloc_type == "exp_gesw_max":
+        pass
+        # _, alloc =
 
     print("Saving allocation", flush=True)
 
