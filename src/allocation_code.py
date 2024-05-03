@@ -16,13 +16,12 @@ def add_vars_to_model(m, paper_rev_pairs):
     return x
 
 
-def add_constrs_to_model(m, x, covs, loads, cov_equality):
-    papers = range(covs.shape[0])
+def add_constrs_to_model(m, x, covs_lb, covs_ub, loads):
+    papers = range(covs_lb.shape[0])
     revs = range(loads.shape[0])
-    if cov_equality:
-        m.addConstrs((x.sum(paper, '*') == covs[paper] for paper in papers), 'covs')  # Paper coverage constraints
-    else:
-        m.addConstrs((x.sum(paper, '*') >= covs[paper] for paper in papers), 'covs')  # Paper coverage constraints
+
+    m.addConstrs((x.sum(paper, '*') <= covs_ub[paper] for paper in papers), 'covs')  # Paper coverage constraints
+    m.addConstrs((x.sum(paper, '*') >= covs_lb[paper] for paper in papers), 'covs')  # Paper coverage constraints
 
     m.addConstrs((x.sum('*', rev) <= loads[rev] for rev in revs), 'loads_ub')  # Reviewer load constraints
 
@@ -38,19 +37,19 @@ def convert_to_mat(m, num_papers, num_revs):
     return alloc
 
 
-def solve_usw_gurobi(affinity_scores, covs, loads, cov_equality=True):
+def solve_usw_gurobi(affinity_scores, covs_lb, covs_ub, loads):
     paper_rev_pairs, pras = create_multidict(affinity_scores)
 
     m = Model("TPMS")
 
     x = add_vars_to_model(m, paper_rev_pairs)
-    add_constrs_to_model(m, x, covs, loads, cov_equality)
+    add_constrs_to_model(m, x, covs_lb, covs_ub, loads)
 
     m.setObjective(x.prod(pras), GRB.MAXIMIZE)
 
     m.optimize()
 
     # Convert to the format we were using, and then print it out and run print_stats
-    alloc = convert_to_mat(m, covs.shape[0], loads.shape[0])
+    alloc = convert_to_mat(m, covs_lb.shape[0], loads.shape[0])
 
     return m.objVal, alloc

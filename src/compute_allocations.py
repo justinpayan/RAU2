@@ -9,31 +9,37 @@ dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ad
 
 
 def load_dset(dset_name, data_dir):
-    ce = True
 
     if dset_name == "aamas1":
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_1.npy"))
-        covs = 3 * np.ones(central_estimate.shape[1])
+        covs_lb = 3 * np.ones(central_estimate.shape[1])
+        covs_ub = 3 * np.ones(central_estimate.shape[1])
+
         loads = 10 * np.ones(central_estimate.shape[0])
     elif dset_name == "aamas2":
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_2.npy"))
-        covs = 3 * np.ones(central_estimate.shape[1])
+        covs_lb = 3 * np.ones(central_estimate.shape[1])
+        covs_ub = 3 * np.ones(central_estimate.shape[1])
+
         loads = 10 * np.ones(central_estimate.shape[0])
     elif dset_name == "aamas3":
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_3.npy"))
-        covs = 3 * np.ones(central_estimate.shape[1])
+        covs_lb = 3 * np.ones(central_estimate.shape[1])
+        covs_ub = 3 * np.ones(central_estimate.shape[1])
         loads = 4 * np.ones(central_estimate.shape[0])
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
-        covs = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
+        covs_lb = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
+        covs_ub = 100*np.ones(central_estimate.shape[1])
         loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
-        ce = False
     elif dset_name == "cs":
         central_estimate = np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))
-        covs = 2 * np.ones(central_estimate.shape[1])
+        covs_lb = 2 * np.ones(central_estimate.shape[1])
+        covs_ub = 2 * np.ones(central_estimate.shape[1])
+
         loads = 13 * np.ones(central_estimate.shape[0])
 
-    return central_estimate, covs, loads, ce
+    return central_estimate, covs_lb, covs_ub, loads
 
 def main(args):
     dset_name = args.dset_name
@@ -43,14 +49,14 @@ def main(args):
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, covs, loads, ce = load_dset(dset_name, data_dir)
+    central_estimate, covs_lb, covs_ub, loads = load_dset(dset_name, data_dir)
 
     print("Loaded dataset %s, computing %s allocation" % (alloc_type, dset_name), flush=True)
 
     # If we are wanting exp_usw_max or exp_gesw_max, we can just compute those using the central estimates.
     # Save the results to outputs/{AAMAS, Advertising, cs}
     if alloc_type == "exp_usw_max":
-        _, alloc = solve_usw_gurobi(central_estimate, covs, loads, cov_equality=ce)
+        _, alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads)
     elif alloc_type == "exp_gesw_max":
         pass
         # _, alloc =
