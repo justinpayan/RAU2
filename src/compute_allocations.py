@@ -6,7 +6,7 @@ import sys
 sys.path.append("/mnt/nfs/scratch1/jpayan/RAU")
 from solve_usw import solve_usw_gurobi
 
-dset_name_map = {"aamas1": "AAMAS", "aamas2": "AAMAS", "aamas3": "AAMAS", "ads": "Advertising", "cs": "cs"}
+dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ads": "Advertising", "cs": "cs"}
 
 
 def load_dset(dset_name, data_dir):
