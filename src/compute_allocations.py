@@ -3,36 +3,27 @@ import numpy as np
 import os
 import pickle
 import sys
-from allocation_code import solve_usw_gurobi, solve_gesw
+from allocation_code import solve_usw_gurobi, solve_gesw, solve_cvar_usw, solve_cvar_gesw
 
 dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ads": "Advertising", "cs": "cs"}
 
 
 def load_dset(dset_name, data_dir):
 
-    if dset_name == "aamas1":
-        central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_1.npy"))
-        covs_lb = 3 * np.ones(central_estimate.shape[1])
-        covs_ub = 3 * np.ones(central_estimate.shape[1])
-        loads = 10 * np.ones(central_estimate.shape[0])
-        groups = np.load(os.path.join(data_dir, "AAMAS", "groups_1.npy"))
-
-    elif dset_name == "aamas2":
-        central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_2.npy"))
-        covs_lb = 3 * np.ones(central_estimate.shape[1])
-        covs_ub = 3 * np.ones(central_estimate.shape[1])
-        loads = 10 * np.ones(central_estimate.shape[0])
-        groups = np.load(os.path.join(data_dir, "AAMAS", "groups_2.npy"))
-
-    elif dset_name == "aamas3":
-        central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_3.npy"))
-        covs_lb = 3 * np.ones(central_estimate.shape[1])
-        covs_ub = 3 * np.ones(central_estimate.shape[1])
-        loads = 4 * np.ones(central_estimate.shape[0])
-        groups = np.load(os.path.join(data_dir, "AAMAS", "groups_3.npy"))
+    if dset_name.startswith("aamas"):
+        idx = int(dset_name[-1])
+        central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_%d.npy" % idx))
+        std_devs = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
+        groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
+        cs = [3, 3, 3]
+        ls = [10, 10, 4]
+        covs_lb = cs[idx-1] * np.ones(central_estimate.shape[1])
+        covs_ub = covs_lb
+        loads = ls[idx-1] * np.ones(central_estimate.shape[0])
 
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
+        std_devs = np.load(os.path.join(data_dir, "Advertising", "sigs.npy"))
         covs_lb = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
         covs_ub = 100*np.ones(central_estimate.shape[1])
         loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
@@ -44,18 +35,32 @@ def load_dset(dset_name, data_dir):
         covs_ub = 2 * np.ones(central_estimate.shape[1])
         loads = 13 * np.ones(central_estimate.shape[0])
         groups = np.load(os.path.join(data_dir, "cs", "groups.npy"))
+        std_devs = None
 
-    return central_estimate, covs_lb, covs_ub, loads, groups
+    return central_estimate, std_devs, covs_lb, covs_ub, loads, groups
+
+# If std_devs is None, assume the central_estimate are the parameters of a multivariate Bernoulli
+# else, assume Gaussian.
+def get_samples(central_estimate, std_devs, num_samples=10):
+    rng = np.random.default_rng(seed=0)
+    if std_devs is None:
+        p = (central_estimate + 5)/6
+        samples = [rng.uniform(size=p.shape) < p for _ in range(num_samples)]
+        return [6 * vs - 5 for vs in samples]
+    else:
+        return [rng.normal(central_estimate, std_devs) for _ in range(num_samples)]
+
 
 def main(args):
     dset_name = args.dset_name
     alloc_type = args.alloc_type
+    conf_level = args.conf_level
 
     base_dir = "/mnt/nfs/scratch1/jpayan/RAU2"
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, covs_lb, covs_ub, loads, groups = load_dset(dset_name, data_dir)
+    central_estimate, std_devs, covs_lb, covs_ub, loads, groups = load_dset(dset_name, data_dir)
 
     print("Loaded dataset %s, computing %s allocation" % (alloc_type, dset_name), flush=True)
 
@@ -66,15 +71,28 @@ def main(args):
     elif alloc_type == "exp_gesw_max":
         alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups)
 
+    if alloc_type.startswith("cvar"):
+        value_samples = get_samples(central_estimate, std_devs)
+
+    if alloc_type == "cvar_usw":
+        alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples)
+    elif alloc_type == "cvar_gesw":
+        alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups)
+
     print("Saving allocation", flush=True)
 
-    np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
+    if alloc_type.startswith("cvar"):
+        np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
+    else:
+        np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
+
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dset_name", type=str, default="aamas1")
     parser.add_argument("--alloc_type", type=str, default="exp_usw_max")
+    parser.add_argument("--conf_level", type=float, default=0.9)
 
     args = parser.parse_args()
     main(args)

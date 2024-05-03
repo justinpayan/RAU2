@@ -86,3 +86,55 @@ def solve_gesw(affinity_scores, covs_lb, covs_ub, loads, groups):
 
     return max_gesw_expected_alloc.value
 
+
+def solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples):
+    alloc = cp.Variable((loads.size, covs_lb.size), boolean=True)
+    alpha = cp.Variable()
+    beta = conf_level
+    num_samples = len(value_samples)
+    # Beta is the cvar level for the RISK. So at .99, that means we are minimizing the conditional expectation
+    # of the highest 1% of RISK scores, or rather, maximizing the CE of the lowest 1% of GAIN scores.
+
+    flat_alloc = cp.reshape(alloc, (1, alloc.size))
+    flat_value_samples = [cp.reshape(vs, (vs.size, 1)) for vs in value_samples]
+    inner_prods = [flat_alloc @ vs for vs in flat_value_samples]
+    summands = [cp.pos(-1 * ip - alpha) for ip in inner_prods]
+    obj = cp.sum(summands)
+    obj = alpha + obj / (num_samples * (1 - beta))
+
+    constr = [cp.sum(alloc, axis=0) >= covs_lb,
+              cp.sum(alloc, axis=0) <= covs_ub,
+              cp.sum(alloc, axis=1) <= loads]
+
+    cvar_usw_problem = cp.Problem(cp.Minimize(obj), constr)
+
+    cvar_usw_problem.solve(verbose=True, solver='GUROBI', reoptimize=True)
+
+    return alloc.value
+
+
+def solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups):
+    return None
+    # alloc = cp.Variable((loads.size, covs_lb.size), boolean=True)
+    # alpha = cp.Variable()
+    # beta = conf_level
+    # num_samples = len(value_samples)
+    # # Beta is the cvar level for the RISK. So at .99, that means we are minimizing the conditional expectation
+    # # of the highest 1% of RISK scores, or rather, maximizing the CE of the lowest 1% of GAIN scores.
+    #
+    # flat_alloc = cp.reshape(alloc, (1, alloc.size))
+    # flat_value_samples = [cp.reshape(vs, (vs.size, 1)) for vs in value_samples]
+    # inner_prods = [flat_alloc @ vs for vs in flat_value_samples]
+    # summands = [cp.pos(-1 * ip - alpha) for ip in inner_prods]
+    # obj = cp.sum(summands)
+    # obj = alpha + obj / (num_samples * (1 - beta))
+    #
+    # constr = [cp.sum(alloc, axis=0) >= covs_lb,
+    #           cp.sum(alloc, axis=0) <= covs_ub,
+    #           cp.sum(alloc, axis=1) <= loads]
+    #
+    # cvar_usw_problem = cp.Problem(cp.Minimize(obj), constr)
+    #
+    # cvar_usw_problem.solve(verbose=True, solver='GUROBI', reoptimize=True)
+    #
+    # return alloc.value
