@@ -34,9 +34,6 @@ def load_dset(dset_name, data_dir):
     return central_estimate, covs, loads
 
 def main(args):
-    parser.add_argument("--dset_name", type=str, default="aamas1")
-    parser.add_argument("--alloc_type", type=str, default="exp_usw_max")
-
     dset_name = args.dset_name
     alloc_type = args.alloc_type
 
