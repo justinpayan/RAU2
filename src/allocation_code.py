@@ -65,6 +65,7 @@ def solve_gesw(affinity_scores, covs_lb, covs_ub, loads, groups):
         group_indicators.append(np.zeros(affinity_scores.shape))
     for idx, g in enumerate(groups):
         group_indicators[g][:, idx] = 1 / group_size[g]
+    group_indicators = [cp.reshape(gi, (gi.size, 1)) for gi in group_indicators]
 
     max_gesw_expected_alloc = cp.Variable(affinity_scores.shape, boolean=True)
     y = cp.Variable()
