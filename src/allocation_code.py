@@ -25,7 +25,7 @@ def add_constrs_to_model(m, x, covs_lb, covs_ub, loads, coi_mask):
 
     m.addConstrs((x.sum(paper, '*') <= covs_ub[paper] for paper in papers), 'covs_ub')  # Paper coverage constraints
     m.addConstrs((x.sum(paper, '*') >= covs_lb[paper] for paper in papers), 'covs_lb')  # Paper coverage constraints
-    m.addConstrs((x[i, j] <= coi_mask[i, j] for (i,j) in product(range(revs), range(papers))), 'coi_mask')
+    m.addConstrs((x[i, j] <= coi_mask[i, j] for (i,j) in product(range(loads.shape[0]), range(covs_lb.shape[0]))), 'coi_mask')
 
     m.addConstrs((x.sum('*', rev) <= loads[rev] for rev in revs), 'loads_ub')  # Reviewer load constraints
 
