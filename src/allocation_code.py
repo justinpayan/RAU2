@@ -44,7 +44,8 @@ def solve_gesw(affinity_scores, covs_lb, covs_ub, loads, groups, coi_mask):
     obj = y
 
     constr = [cp.sum(alloc, axis=0) >= covs_lb, cp.sum(alloc, axis=0) <= covs_ub,
-              cp.sum(alloc, axis=1) <= loads, y >= 0, y <= inner_prods_per_group, alloc <= coi_mask]
+              cp.sum(alloc, axis=1) <= loads, y <= inner_prods_per_group, alloc <= coi_mask]
+    # We used to have y >= 0, but I think this makes the model infeasible sometimes, and anyway it isn't necessary
 
     gesw_problem = cp.Problem(cp.Maximize(obj), constr)
 
