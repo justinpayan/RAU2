@@ -39,7 +39,7 @@ def load_dset(dset_name, data_dir):
 
         covs_lb = 2 * np.ones(central_estimate.shape[1])
         covs_ub = 2 * np.ones(central_estimate.shape[1])
-        loads = 13 * np.ones(central_estimate.shape[0])
+        loads = 20 * np.ones(central_estimate.shape[0])
         groups = np.load(os.path.join(data_dir, "cs", "groups.npy"))
         std_devs = None
 

@@ -20,7 +20,7 @@ def solve_usw_gurobi(affinity_scores, covs_lb, covs_ub, loads, coi_mask):
 
     m.optimize()
 
-    return alloc.value
+    return alloc.x
 
 
 def solve_gesw(affinity_scores, covs_lb, covs_ub, loads, groups, coi_mask):
