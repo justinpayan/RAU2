@@ -15,6 +15,8 @@ def load_dset(dset_name, data_dir):
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_%d.npy" % idx))
         std_devs = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
         groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
+        coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
+
         cs = [3, 3, 3]
         ls = [10, 10, 4]
         covs_lb = cs[idx-1] * np.ones(central_estimate.shape[1])
@@ -24,6 +26,8 @@ def load_dset(dset_name, data_dir):
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
         std_devs = np.load(os.path.join(data_dir, "Advertising", "sigs.npy"))
+        coi_mask = np.load(os.path.join(data_dir, "Advertising", "coi_mask.npy"))
+
         covs_lb = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
         covs_ub = 100*np.ones(central_estimate.shape[1])
         loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
@@ -31,13 +35,17 @@ def load_dset(dset_name, data_dir):
 
     elif dset_name == "cs":
         central_estimate = np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))
+        coi_mask = np.load(os.path.join(data_dir, "cs", "coi_mask.npy"))
+
         covs_lb = 2 * np.ones(central_estimate.shape[1])
         covs_ub = 2 * np.ones(central_estimate.shape[1])
         loads = 13 * np.ones(central_estimate.shape[0])
         groups = np.load(os.path.join(data_dir, "cs", "groups.npy"))
         std_devs = None
 
-    return central_estimate, std_devs, covs_lb, covs_ub, loads, groups
+    covs_lb = np.minimum(covs_lb, np.sum(coi_mask, axis=0))
+
+    return central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask
 
 # If std_devs is None, assume the central_estimate are the parameters of a multivariate Bernoulli
 # else, assume Gaussian.
@@ -60,24 +68,24 @@ def main(args):
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, std_devs, covs_lb, covs_ub, loads, groups = load_dset(dset_name, data_dir)
+    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask = load_dset(dset_name, data_dir)
 
     print("Loaded dataset %s, computing %s allocation" % (alloc_type, dset_name), flush=True)
 
     # If we are wanting exp_usw_max or exp_gesw_max, we can just compute those using the central estimates.
     # Save the results to outputs/{AAMAS, Advertising, cs}
     if alloc_type == "exp_usw_max":
-        _, alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads)
+        _, alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads, coi_mask)
     elif alloc_type == "exp_gesw_max":
-        alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups)
+        alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
     if alloc_type.startswith("cvar"):
         value_samples = get_samples(central_estimate, std_devs)
 
     if alloc_type == "cvar_usw":
-        alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples)
+        alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
     elif alloc_type == "cvar_gesw":
-        alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups)
+        alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
     print("Saving allocation", flush=True)
 
