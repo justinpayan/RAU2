@@ -17,8 +17,8 @@ def load_dset(dset_name, data_dir):
         groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
 
-        cs = [3, 3, 3]
-        ls = [10, 10, 4]
+        cs = [3, 2, 2]
+        ls = [15, 15, 4]
         covs_lb = cs[idx-1] * np.ones(central_estimate.shape[1])
         covs_ub = covs_lb
         loads = ls[idx-1] * np.ones(central_estimate.shape[0])
