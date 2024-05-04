@@ -49,7 +49,7 @@ def load_dset(dset_name, data_dir):
 
 # If std_devs is None, assume the central_estimate are the parameters of a multivariate Bernoulli
 # else, assume Gaussian.
-def get_samples(central_estimate, std_devs, num_samples=10):
+def get_samples(central_estimate, std_devs, num_samples=100):
     rng = np.random.default_rng(seed=0)
     if std_devs is None:
         p = (central_estimate + 5)/6
