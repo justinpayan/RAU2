@@ -75,7 +75,7 @@ def main(args):
     # If we are wanting exp_usw_max or exp_gesw_max, we can just compute those using the central estimates.
     # Save the results to outputs/{AAMAS, Advertising, cs}
     if alloc_type == "exp_usw_max":
-        _, alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads, coi_mask)
+        alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads, coi_mask)
     elif alloc_type == "exp_gesw_max":
         alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 

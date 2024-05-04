@@ -1,62 +1,26 @@
 import cvxpy as cp
 import numpy as np
-import re
 
 from collections import Counter
 from gurobipy import Model, multidict, GRB
-from itertools import product
-
-def create_multidict(pra):
-    d = {}
-    for rev in range(pra.shape[0]):
-        for paper in range(pra.shape[1]):
-            d[(paper, rev)] = pra[rev, paper]
-    return multidict(d)
-
-
-def add_vars_to_model(m, paper_rev_pairs):
-    x = m.addVars(paper_rev_pairs, name="assign", vtype=GRB.BINARY)  # The binary assignment variables
-    return x
-
-
-def add_constrs_to_model(m, x, covs_lb, covs_ub, loads, coi_mask):
-    papers = range(covs_lb.shape[0])
-    revs = range(loads.shape[0])
-
-    m.addConstrs((x.sum(paper, '*') <= covs_ub[paper] for paper in papers), 'covs_ub')  # Paper coverage constraints
-    m.addConstrs((x.sum(paper, '*') >= covs_lb[paper] for paper in papers), 'covs_lb')  # Paper coverage constraints
-    m.addConstrs((x[i, j] <= coi_mask[i, j] for (i,j) in product(range(loads.shape[0]), range(covs_lb.shape[0]))), 'coi_mask')
-
-    m.addConstrs((x.sum('*', rev) <= loads[rev] for rev in revs), 'loads_ub')  # Reviewer load constraints
-
-
-def convert_to_mat(m, num_papers, num_revs):
-    alloc = np.zeros((num_revs, num_papers))
-    for var in m.getVars():
-        if var.varName.startswith("assign") and var.x > .1:
-            s = re.findall("(\d+)", var.varName)
-            p = int(s[0])
-            r = int(s[1])
-            alloc[r, p] = 1
-    return alloc
 
 
 def solve_usw_gurobi(affinity_scores, covs_lb, covs_ub, loads, coi_mask):
-    paper_rev_pairs, pras = create_multidict(affinity_scores)
-
     m = Model("TPMS")
 
-    x = add_vars_to_model(m, paper_rev_pairs)
-    add_constrs_to_model(m, x, covs_lb, covs_ub, loads, coi_mask)
+    alloc = m.addMVar(affinity_scores.shape, vtype=GRB.BINARY, name='alloc')
 
-    m.setObjective(x.prod(pras), GRB.MAXIMIZE)
+    m.addConstr(alloc.sum(axis=0) >= covs_lb)
+    m.addConstr(alloc.sum(axis=0) <= covs_ub)
+    m.addConstr(alloc.sum(axis=1) <= loads)
+    m.addConstr(alloc <= coi_mask)
+
+    obj = (alloc*affinity_scores).sum()
+    m.setObjective(obj, GRB.MAXIMIZE)
 
     m.optimize()
 
-    # Convert to the format we were using, and then print it out and run print_stats
-    alloc = convert_to_mat(m, covs_lb.shape[0], loads.shape[0])
-
-    return m.objVal, alloc
+    return alloc.value
 
 
 def solve_gesw(affinity_scores, covs_lb, covs_ub, loads, groups, coi_mask):
