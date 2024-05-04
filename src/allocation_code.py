@@ -82,7 +82,7 @@ def solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
 
 
 def solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask):
-    shape_tup = (covs_lb.size, loads.size)
+    shape_tup = (loads.size, covs_lb.size)
     num_groups = len(set(groups))
     group_indicators = []
     group_size = Counter(groups)
