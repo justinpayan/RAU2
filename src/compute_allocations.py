@@ -92,9 +92,13 @@ def main(args):
 
     if alloc_type == "adv_usw":
         delta = np.round(1-conf_level, decimals=2)
+        if std_devs is None:
+            central_estimate = (central_estimate + 5) / 6
         alloc = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
     elif alloc_type == "adv_gesw":
         delta = np.round(1-conf_level, decimals=2)
+        if std_devs is None:
+            central_estimate = (central_estimate + 5) / 6
         alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
 
     print("Saving allocation", flush=True)
