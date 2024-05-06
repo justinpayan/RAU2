@@ -197,75 +197,6 @@ def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_p
     return final_alloc
 
 
-def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, covs_lb_l, covs_ub_l, milp=False):
-    ngroups = len(phat_l)
-    model = gp.Model()
-
-    e_vals = []
-    c_vals = []
-    f_vals = []
-    x_vals = []
-    x0_vals = []
-    Allocs = []
-
-    for gdx in range(ngroups):
-        print("starting with group ", gdx)
-        n_agents = phat_l[gdx].shape[0]
-        n_items = phat_l[gdx].shape[1]
-        phat = phat_l[gdx]
-        C = C_l[gdx]
-        covs_lb = covs_lb_l[gdx]
-        covs_ub = covs_ub_l[gdx]
-
-        A_multiplier = (a_l[gdx] - b_l[gdx])
-        if milp == False:
-            A = model.addMVar(phat_l[gdx].shape, lb=0, ub=1, vtype=gp.GRB.CONTINUOUS,
-                              name='Alloc' + str(gdx))
-        else:
-            A = model.addMVar(phat_l[gdx].shape, lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
-        Allocs.append(A)
-
-        log_p_phat = np.log(phat)
-        log_one_minus_phat = np.log(1 - phat)
-
-        rhs_bd = rhs_bd_per_group[gdx]
-
-        c_val = np.sum(C)
-
-        e = -1.0 * (c_val * rhs_bd + np.sum(log_one_minus_phat))
-        neg_ones = -1 * np.ones((n_agents, n_items))
-
-        f = C * (log_p_phat - log_one_minus_phat)
-
-        x0 = model.addVar(lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="x0")
-        x0_vals.append(x0)
-        x = model.addMVar((n_agents, n_items), lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pval")
-        e_vals.append(e)
-        c_vals.append(neg_ones)
-        f_vals.append(f)
-        x_vals.append(x)
-
-        model.addConstr(A <= C)
-        model.addConstr(A.sum(axis=0) <= covs_ub)
-        model.addConstr(A.sum(axis=0) >= covs_lb)
-        model.addConstr(f*e-x <= A_multiplier*A)
-
-    model.addConstr(gp.quicksum(Allocs[idx].sum(axis=1) for idx in range(ngroups)) <= loads)
-
-    model.setObjective(gp.quicksum(x0_vals[idx]*e_vals[idx] + (c_vals[idx] * x_vals[idx]).sum() for idx in range(ngroups)), gp.GRB.MAXIMIZE)
-
-    model.setParam('OutputFlag', 1)
-
-    model.optimize()
-    final_allocs = []
-    for idx in range(ngroups):
-        final_allocs.append(Allocs[idx].X)
-
-    obj = model.getObjective()
-
-    return final_allocs, obj.getValue()
-
-
 # def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, covs_lb_l, covs_ub_l, milp=False):
 #     ngroups = len(phat_l)
 #     model = gp.Model()
@@ -274,71 +205,55 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
 #     c_vals = []
 #     f_vals = []
 #     x_vals = []
+#     x0_vals = []
 #     Allocs = []
-#
-#     load_sum = None
 #
 #     for gdx in range(ngroups):
 #         print("starting with group ", gdx)
 #         n_agents = phat_l[gdx].shape[0]
 #         n_items = phat_l[gdx].shape[1]
-#         phat = phat_l[gdx].flatten()
-#         C = C_l[gdx].flatten()
-#         covs_lb = covs_lb_l[gdx].flatten()
-#         covs_ub = covs_ub_l[gdx].flatten()
+#         phat = phat_l[gdx]
+#         C = C_l[gdx]
+#         covs_lb = covs_lb_l[gdx]
+#         covs_ub = covs_ub_l[gdx]
 #
 #         A_multiplier = (a_l[gdx] - b_l[gdx])
 #         if milp == False:
-#             A = model.addMVar(len(phat_l[gdx].flatten()), lb=0, ub=1, vtype=gp.GRB.CONTINUOUS,
+#             A = model.addMVar(phat_l[gdx].shape, lb=0, ub=1, vtype=gp.GRB.CONTINUOUS,
 #                               name='Alloc' + str(gdx))
 #         else:
-#             A = model.addMVar(len(phat_l[gdx].flatten()), lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
+#             A = model.addMVar(phat_l[gdx].shape, lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
 #         Allocs.append(A)
 #
-#         log_p_phat = np.log(phat).flatten()
-#         log_one_minus_phat = np.log(1 - phat).flatten()
+#         log_p_phat = np.log(phat)
+#         log_one_minus_phat = np.log(1 - phat)
 #
 #         rhs_bd = rhs_bd_per_group[gdx]
 #
-#         mn = int(n_agents * n_items)
-#         # mn = np.sum(C)
 #         c_val = np.sum(C)
 #
 #         e = -1.0 * (c_val * rhs_bd + np.sum(log_one_minus_phat))
-#         neg_ones = -1 * np.ones(mn)
+#         neg_ones = -1 * np.ones((n_agents, n_items))
 #
-#         c = np.vstack((np.array([e]).reshape(1, 1), neg_ones.flatten().reshape(-1, 1))).flatten()
-#         f = C * (log_p_phat - log_one_minus_phat).flatten()
+#         f = C * (log_p_phat - log_one_minus_phat)
 #
-#         x = model.addMVar(mn + 1, lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pval")
+#         x0 = model.addVar(lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="x0")
+#         x0_vals.append(x0)
+#         x = model.addMVar((n_agents, n_items), lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pval")
 #         e_vals.append(e)
-#         c_vals.append(c)
+#         c_vals.append(neg_ones)
 #         f_vals.append(f)
 #         x_vals.append(x)
 #
-#         if load_sum is None:
-#             load_sum = [gp.quicksum(A[idx * n_items:idx * (n_items + 1)]) for idx in range(n_agents)]
-#         else:
-#             for idx in range(n_agents):
-#                 load_sum[idx] += gp.quicksum(A[idx * n_items:idx*(n_items + 1)])
-#         # print("load_sum:")
-#         # print(load_sum)
+#         model.addConstr(A <= C)
+#         model.addConstr(A.sum(axis=0) <= covs_ub)
+#         model.addConstr(A.sum(axis=0) >= covs_lb)
+#         model.addConstr(f*e-x <= A_multiplier*A)
 #
-#         model.addConstrs(A[i] <= C[i] for i in range(mn))
+#     model.addConstr(gp.quicksum(Allocs[idx].sum(axis=1) for idx in range(ngroups)) <= loads)
 #
-#         model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
-#                          range(n_items))
+#     model.setObjective(gp.quicksum(x0_vals[idx]*e_vals[idx] + (c_vals[idx] * x_vals[idx]).sum() for idx in range(ngroups)), gp.GRB.MAXIMIZE)
 #
-#         model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
-#                          range(n_items))
-#
-#         model.addConstrs((f[jdx] * x[0] - x[jdx + 1] <= A_multiplier * A[jdx] for jdx in range(mn)),
-#                          name='ctr' + str(gdx))
-#
-#     total_agents = loads.size
-#     model.addConstr(load_sum[idx] <= loads[idx] for idx in range(total_agents))
-#
-#     model.setObjective(gp.quicksum(c_vals[idx] @ x_vals[idx] for idx in range(ngroups)), gp.GRB.MAXIMIZE)
 #     model.setParam('OutputFlag', 1)
 #
 #     model.optimize()
@@ -349,6 +264,91 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
 #     obj = model.getObjective()
 #
 #     return final_allocs, obj.getValue()
+
+
+def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, covs_lb_l, covs_ub_l, milp=False):
+    ngroups = len(phat_l)
+    model = gp.Model()
+
+    e_vals = []
+    c_vals = []
+    f_vals = []
+    x_vals = []
+    Allocs = []
+
+    load_sum = None
+
+    for gdx in range(ngroups):
+        print("starting with group ", gdx)
+        n_agents = phat_l[gdx].shape[0]
+        n_items = phat_l[gdx].shape[1]
+        phat = phat_l[gdx].flatten()
+        C = C_l[gdx].flatten()
+        covs_lb = covs_lb_l[gdx].flatten()
+        covs_ub = covs_ub_l[gdx].flatten()
+
+        A_multiplier = (a_l[gdx] - b_l[gdx])
+        if milp == False:
+            A = model.addMVar(len(phat_l[gdx].flatten()), lb=0, ub=1, vtype=gp.GRB.CONTINUOUS,
+                              name='Alloc' + str(gdx))
+        else:
+            A = model.addMVar(len(phat_l[gdx].flatten()), lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
+        Allocs.append(A)
+
+        log_p_phat = np.log(phat).flatten()
+        log_one_minus_phat = np.log(1 - phat).flatten()
+
+        rhs_bd = rhs_bd_per_group[gdx]
+
+        mn = int(n_agents * n_items)
+        # mn = np.sum(C)
+        c_val = np.sum(C)
+
+        e = -1.0 * (c_val * rhs_bd + np.sum(log_one_minus_phat))
+        neg_ones = -1 * np.ones(mn)
+
+        c = np.vstack((np.array([e]).reshape(1, 1), neg_ones.flatten().reshape(-1, 1))).flatten()
+        f = C * (log_p_phat - log_one_minus_phat).flatten()
+
+        x = model.addMVar(mn + 1, lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pval")
+        e_vals.append(e)
+        c_vals.append(c)
+        f_vals.append(f)
+        x_vals.append(x)
+
+        if load_sum is None:
+            load_sum = [gp.quicksum(A[idx * n_items:idx * (n_items + 1)]) for idx in range(n_agents)]
+        else:
+            for idx in range(n_agents):
+                load_sum[idx] += gp.quicksum(A[idx * n_items:idx*(n_items + 1)])
+        # print("load_sum:")
+        # print(load_sum)
+
+        model.addConstrs(A[i] <= C[i] for i in range(mn))
+
+        model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
+                         range(n_items))
+
+        model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
+                         range(n_items))
+
+        model.addConstrs((f[jdx] * x[0] - x[jdx + 1] <= A_multiplier * A[jdx] for jdx in range(mn)),
+                         name='ctr' + str(gdx))
+
+    total_agents = loads.size
+    model.addConstr(load_sum[idx] <= loads[idx] for idx in range(total_agents))
+
+    model.setObjective(gp.quicksum(c_vals[idx] @ x_vals[idx] for idx in range(ngroups)), gp.GRB.MAXIMIZE)
+    model.setParam('OutputFlag', 1)
+
+    model.optimize()
+    final_allocs = []
+    for idx in range(ngroups):
+        final_allocs.append(Allocs[idx].X)
+
+    obj = model.getObjective()
+
+    return final_allocs, obj.getValue()
 
 
 
