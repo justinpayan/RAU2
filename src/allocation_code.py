@@ -248,12 +248,12 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
         x_vals.append(x)
 
         if load_sum is None:
-            load_sum = [A[idx * n_items:idx * (n_items + 1)].sum() for idx in range(n_agents)]
+            load_sum = [gp.quicksum(A[idx * n_items:idx * (n_items + 1)]) for idx in range(n_agents)]
         else:
             for idx in range(n_agents):
-                load_sum[idx] += A[idx * n_items:idx*(n_items + 1)].sum()
-        print("load_sum:")
-        print(load_sum)
+                load_sum[idx] += gp.quicksum(A[idx * n_items:idx*(n_items + 1)])
+        # print("load_sum:")
+        # print(load_sum)
 
         model.addConstrs(A[i] <= C[i] for i in range(mn))
 
