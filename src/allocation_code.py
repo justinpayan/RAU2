@@ -233,7 +233,7 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
         c_val = np.sum(C)
 
         e = -1.0 * (c_val * rhs_bd + np.sum(log_one_minus_phat))
-        neg_ones = -1 * np.ones(n_agents, n_items)
+        neg_ones = -1 * np.ones((n_agents, n_items))
 
         f = C * (log_p_phat - log_one_minus_phat)
 
