@@ -22,6 +22,7 @@ def load_dset(dset_name, data_dir):
         covs_lb = cs[idx-1] * np.ones(central_estimate.shape[1])
         covs_ub = covs_lb
         loads = ls[idx-1] * np.ones(central_estimate.shape[0])
+        rhs_bd_per_group = None
 
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
@@ -32,6 +33,7 @@ def load_dset(dset_name, data_dir):
         covs_ub = 100*np.ones(central_estimate.shape[1])
         loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
         groups = np.load(os.path.join(data_dir, "Advertising", "groups.npy"))
+        rhs_bd_per_group = None
 
     elif dset_name == "cs":
         rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "delta_to_normal_bd.pkl"), 'rb'))
