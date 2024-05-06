@@ -210,6 +210,7 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
     load_sum = None
 
     for gdx in range(ngroups):
+        print("starting with group ", gdx)
         n_agents = phat_l[gdx].shape[0]
         n_items = phat_l[gdx].shape[1]
         phat = phat_l[gdx].flatten()
@@ -251,6 +252,8 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
         else:
             for idx in range(n_agents):
                 load_sum[idx] += A[idx * n_items:idx*(n_items + 1)].sum()
+        print("load_sum:")
+        print(load_sum)
 
         model.addConstrs(A[i] <= C[i] for i in range(mn))
 
