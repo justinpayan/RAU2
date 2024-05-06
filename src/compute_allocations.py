@@ -3,7 +3,7 @@ import numpy as np
 import os
 import pickle
 import sys
-from allocation_code import solve_usw_gurobi, solve_gesw, solve_cvar_usw, solve_cvar_gesw
+from allocation_code import solve_usw_gurobi, solve_gesw, solve_cvar_usw, solve_cvar_gesw, solve_adv_usw, solve_adv_gesw
 
 dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ads": "Advertising", "cs": "cs"}
 
@@ -34,6 +34,7 @@ def load_dset(dset_name, data_dir):
         groups = np.load(os.path.join(data_dir, "Advertising", "groups.npy"))
 
     elif dset_name == "cs":
+        rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "delta_to_normal_bd.pkl"), 'rb'))
         central_estimate = np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))
         coi_mask = np.load(os.path.join(data_dir, "cs", "coi_mask.npy"))
 
@@ -45,11 +46,11 @@ def load_dset(dset_name, data_dir):
 
     covs_lb = np.minimum(covs_lb, np.sum(coi_mask, axis=0))
 
-    return central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask
+    return central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group
 
 # If std_devs is None, assume the central_estimate are the parameters of a multivariate Bernoulli
 # else, assume Gaussian.
-def get_samples(central_estimate, std_devs, num_samples=100):
+def get_samples(central_estimate, std_devs, num_samples=10):
     rng = np.random.default_rng(seed=0)
     if std_devs is None:
         p = (central_estimate + 5)/6
@@ -68,7 +69,7 @@ def main(args):
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask = load_dset(dset_name, data_dir)
+    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir)
 
     print("Loaded dataset %s, computing %s allocation" % (alloc_type, dset_name), flush=True)
 
@@ -87,9 +88,14 @@ def main(args):
     elif alloc_type == "cvar_gesw":
         alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
+    if alloc_type == "adv_usw":
+        alloc = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[1-conf_level], coi_mask, groups)
+    elif alloc_type == "adv_gesw":
+        alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[1-conf_level], coi_mask, groups)
+
     print("Saving allocation", flush=True)
 
-    if alloc_type.startswith("cvar"):
+    if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
         np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
     else:
         np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
