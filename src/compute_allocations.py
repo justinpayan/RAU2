@@ -91,9 +91,11 @@ def main(args):
         alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
     if alloc_type == "adv_usw":
-        alloc = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[1-conf_level], coi_mask, groups)
+        delta = np.round(1-conf_level, decimals=2)
+        alloc = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
     elif alloc_type == "adv_gesw":
-        alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[1-conf_level], coi_mask, groups)
+        delta = np.round(1-conf_level, decimals=2)
+        alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
 
     print("Saving allocation", flush=True)
 
