@@ -252,7 +252,7 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
 
     model.addConstr(gp.quicksum(Allocs[idx].sum(axis=1) for idx in range(ngroups)) <= loads)
 
-    model.setObjective(gp.quicksum(x0[idx]*e[idx] + c_vals[idx].flatten() @ x_vals[idx].flatten() for idx in range(ngroups)), gp.GRB.MAXIMIZE)
+    model.setObjective(gp.quicksum(x0_vals[idx]*e_vals[idx] + c_vals[idx].flatten() @ x_vals[idx].flatten() for idx in range(ngroups)), gp.GRB.MAXIMIZE)
 
     model.setParam('OutputFlag', 1)
 
