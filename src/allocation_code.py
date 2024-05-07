@@ -387,6 +387,8 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
         n_reviewers = int(mu_list[gdx].shape[0])
         n_papers = int(mu_list[gdx].shape[1])
 
+        C = coi_mask_list[gdx].flatten()
+
         num = int(n_reviewers * n_papers)
 
         lamda_g = m.addVar(0.0, gp.GRB.INFINITY, 0.0, gp.GRB.CONTINUOUS, "lamda"+ str(gdx))
@@ -412,6 +414,8 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
 
         zeros = np.zeros(num)
         m.addConstr(beta_g >= zeros, name='c8'+ str(gdx))
+
+        m.addConstrs(alloc_g[i] <= C[i] for i in range(num))
 
         m.addConstrs(gp.quicksum(alloc_g[jdx * n_papers + idx] for jdx in range(n_reviewers)) <= covs_ub[idx] for idx in range(n_papers))
         m.addConstrs(gp.quicksum(alloc_g[jdx * n_papers + idx] for jdx in range(n_reviewers)) >= covs_lb[idx] for idx in range(n_papers))
@@ -660,8 +664,11 @@ class ComputeGroupEgalitarianQuadratic():
 
             n_agents = self.A_list[i].shape[0]
             n_items = self.A_list[i].shape[1]
-            covs_lb = self.covs_lb_list[i]
-            covs_ub = self.covs_ub_list[i]
+            covs_lb = self.covs_lb_list[i].flatten()
+            covs_ub = self.covs_ub_list[i].flatten()
+            C = self.coi_mask_list[i].flatten()
+
+            model.addConstrs(A_g[i] <= C[i] for i in range(mn))
 
             model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
                              range(n_items))
