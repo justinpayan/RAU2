@@ -556,11 +556,14 @@ class ComputeGroupEgalitarianQuadratic():
             Sigma_g = self.sigma_tns[gdx]
             term1 = torch.sum((Cg*(Ag - Bg)).flatten()*Vg.flatten())
             temp = (Cg*(Ag-Bg)).reshape(-1,1)
+            print(temp)
             term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
             term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]**2
+            print(term1, term2, term3)
             term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
             print(term)
             term_sum = term_sum + term
+            print()
 
         soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         return -soft_min
