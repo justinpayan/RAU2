@@ -1,5 +1,6 @@
 import cvxpy as cp
 import numpy as np
+import torch
 
 from collections import Counter
 import gurobipy as gp
@@ -157,18 +158,10 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
 
     if std_devs is None:
         # This is the model based on cross-entropy loss, so we'll use the linear function
-        group_allocs, _ = compute_group_utilitarian_linear(a_l,
-                                                           b_l,
-                                                           ce_l,
-                                                           coi_mask_l,
-                                                           rhs_bd_per_group,
-                                                           loads,
-                                                           covs_lb_l,
-                                                           covs_ub_l)
+        group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
+                                                           rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
-        _, _, mu_by_groups, sd_l, covs_lb_l, covs_ub_l, coi_mask_l = \
-            prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups)
-        group_allocs = utilitarian_ellipsoid_uncertainty(mu_by_groups, covs_lb_l, covs_ub_l, loads,
+        group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
                                                          sd_l, coi_mask_l, rhs_bd_per_group)
 
     # Stitch together group_allocs into a single allocation and return it
@@ -179,22 +172,17 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
     return final_alloc
 
 def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups):
+    a_l, b_l, ce_l, sd_l, covs_lb_l, covs_ub_l, coi_mask_l = \
+        prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups)
     if std_devs is None:
-        a_l, b_l, phat_l, covs_lb_l, covs_ub_l, coi_mask_l = \
-            prep_groups(central_estimate, covs_lb, covs_ub, coi_mask, groups)
         # This is the model based on cross-entropy loss, so we'll use the linear function
-        group_allocs, _ = compute_group_egal_linear(a_l,
-                                                    b_l,
-                                                    phat_l,
-                                                    coi_mask_l,
-                                                    rhs_bd_per_group,
-                                                    loads,
-                                                    covs_lb_l,
-                                                    covs_ub_l)
+        group_allocs, _ = compute_group_egal_linear(a_l, b_l, ce_l, coi_mask_l,
+                                                           rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
-        pass
         # egalObject = ComputeGroupEgalitarianQuadratic(mu_list, covs_list, loads_list, Sigma_list, rad_list, eta, step_size, n_iter=1000)
-        # egalObject.gradient_descent()
+        step_size = .1
+        egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads, sd_l, rhs_bd_per_group, step_size, n_iter=1000)
+        egalObject.gradient_descent()
 
     # Stitch together group_allocs into a single allocation and return it
     final_alloc = np.zeros_like(central_estimate)
@@ -425,8 +413,6 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
         zeros = np.zeros(num)
         m.addConstr(beta_g >= zeros, name='c8'+ str(gdx))
 
-        m.addConstrs(alloc_g[idx*n_papers:idx*(n_papers+1)].sum() <= loads[idx] for idx in range(n_reviewers))
-
         m.addConstrs(gp.quicksum(alloc_g[jdx * n_papers + idx] for jdx in range(n_reviewers)) <= covs_ub[idx] for idx in range(n_papers))
         m.addConstrs(gp.quicksum(alloc_g[jdx * n_papers + idx] for jdx in range(n_reviewers)) >= covs_lb[idx] for idx in range(n_papers))
 
@@ -443,7 +429,7 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
     total_agents = loads.size
     m.addConstrs(load_sum[idx] <= loads[idx] for idx in range(total_agents))
 
-    m.setObjective(gp.quicksum((coi_mask_list[gdx]*(alloc_list[gdx]-beta_list[gdx])) @ mu_list[gdx] - ((coi_mask_list[gdx]*(alloc_list[gdx]-beta_list[gdx])) @  Sigma_list[gdx] @ temp_list[gdx]) - lamda_list[gdx]* rad_list[gdx] for gdx in range(ngroups)), gp.GRB.MAXIMIZE)
+    m.setObjective(gp.quicksum((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @ mu_list[gdx].flatten() - ((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @  Sigma_list[gdx].flatten() @ temp_list[gdx]) - lamda_list[gdx]* rad_list[gdx] for gdx in range(ngroups)), gp.GRB.MAXIMIZE)
     m.setParam('OutputFlag', 1)
 
     m.optimize(softtime)
@@ -472,16 +458,19 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
 
 
 class ComputeGroupEgalitarianQuadratic():
-    def __init__(self, mu_list, covs_list, loads_list, Sigma_list, rad_list, eta, step_size, n_iter=1000):
+    def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=1000):
 
         self.mu_list = mu_list
         self.Sigma_list = Sigma_list
         self.rad_list = rad_list
-        self.covs_list = covs_list
-        self.loads_list = loads_list
+        self.covs_lb_list = covs_lb_l
+        self.covs_ub_list = covs_ub_l
+        self.coi_mask_list = coi_mask_l
+        self.loads = loads
         self.step_size = step_size
         self.n_iter = n_iter
 
+        self.eta = 10
 
         self.ngroups = len(self.mu_list)
         self.nA_list = []
@@ -492,8 +481,6 @@ class ComputeGroupEgalitarianQuadratic():
             nI = self.mu_list[idx].shape[1]
             self.nA_list.append(nA)
             self.nI_list.append(nI)
-
-        self.eta = eta
 
         self.beta_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
         self.A_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
@@ -507,9 +494,9 @@ class ComputeGroupEgalitarianQuadratic():
         self.A_tl = []
         self.beta_tns = []
         self.Lamda_tns = None
-        self.sigma_tns=[]
+        self.sigma_tns = []
+        self.coi_tns = []
         self.Lamda_tns = torch.rand(self.ngroups,requires_grad=True)
-        # self.Lamda_tns.requires_grad = True
 
         params=[]
         params.append(self.Lamda_tns)
@@ -517,10 +504,10 @@ class ComputeGroupEgalitarianQuadratic():
         for gdx in range(self.ngroups):
             self.mu_tl.append(torch.Tensor(self.mu_list[gdx]))
             self.beta_tns.append(torch.rand(self.beta_list[gdx].shape,requires_grad=True))
-            # self.beta_tns[-1].requires_grad= True
             self.A_tl.append(torch.rand(self.A_list[gdx].shape, requires_grad=True))
-            # self.A_tl[-1].requires_grad=True
             self.sigma_tns.append(torch.Tensor(self.Sigma_list[gdx]))
+            self.sigma_tns.append(torch.Tensor(self.Sigma_list[gdx]))
+            self.coi_tns.append(torch.Tensor(self.coi_mask_list[gdx]))
             params.append(self.A_tl[gdx])
             params.append(self.beta_tns[gdx])
 
@@ -530,23 +517,19 @@ class ComputeGroupEgalitarianQuadratic():
 
 
     def welfare(self):
-        welfares=[]
-        term_sum = 0.0
+        welfares = []
         for gdx in range(self.ngroups):
             Ag = self.A_tl[gdx].flatten()
             Bg = self.beta_tns[gdx].flatten()
             Vg = self.mu_tl[gdx].flatten()
             Sigma_g = self.sigma_tns[gdx]
-            term1 = torch.sum((Ag - Bg).flatten() * Vg.flatten())
-            temp = (Ag - Bg).reshape(-1, 1)
+            Cg = self.coi_tns[gdx].flatten()
+            term1 = torch.sum((Cg*(Ag - Bg)).flatten() * Vg.flatten())
+            temp = (Cg*(Ag - Bg)).reshape(-1, 1)
             term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx] ** 2
             w = (term1 + term2 + term3)
             welfares.append(w.detach().cpu().numpy())
-
-            # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
-            # term_sum = term_sum + term
-
 
         return welfares
 
@@ -558,14 +541,14 @@ class ComputeGroupEgalitarianQuadratic():
             Ag = self.A_tl[gdx].flatten()
             Bg = self.beta_tns[gdx].flatten()
             Vg = self.mu_tl[gdx].flatten()
+            Cg = self.coi_tns[gdx].flatten()
             Sigma_g = self.sigma_tns[gdx]
-            term1 = torch.sum((Ag - Bg).flatten()*Vg.flatten())
-            temp = (Ag-Bg).reshape(-1,1)
+            term1 = torch.sum((Cg*(Ag - Bg)).flatten()*Vg.flatten())
+            temp = (Cg*(Ag-Bg)).reshape(-1,1)
             term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
             term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]**2
             term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
             term_sum = term_sum + term
-
 
         soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         return -soft_min
@@ -677,15 +660,26 @@ class ComputeGroupEgalitarianQuadratic():
 
             n_agents = self.A_list[i].shape[0]
             n_items = self.A_list[i].shape[1]
-            loads = self.loads_list[i]
-            covs = self.covs_list[i]
-            model.addConstrs(A_g[idx * n_items:idx * (n_items + 1)].sum() <= loads[idx] for idx in range(n_agents))
+            covs_lb = self.covs_lb_list[i]
+            covs_ub = self.covs_ub_list[i]
 
-            model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) == covs[idx] for idx in
+            model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
+                             range(n_items))
+            model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
                              range(n_items))
 
             beta_abss.append(beta_abs)
             A_abss.append(A_abs)
+
+        load_sum = model.addMVar(self.loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
+
+        model.addConstrs(load_sum[idx] == gp.quicksum(
+            As[gdx][idx * self.mu_list[gdx].shape[1]:(idx + 1) * (self.mu_list[gdx].shape[1])].sum() for gdx in
+            range(self.ngroups)) for
+                     idx in range(self.loads.size))
+        total_agents = self.loads.size
+        model.addConstrs(load_sum[idx] <= self.loads[idx] for idx in range(total_agents))
+
         model.setObjective(gp.quicksum(
             lamdas_abs[jdx]**2 + gp.quicksum(A_abss[jdx][idx]**2+ beta_abss[jdx][idx]**2 for idx in range(len(self.A_list[jdx].flatten()))) for jdx in range(g)), gp.GRB.MINIMIZE)
         model.setParam('OutputFlag', 0)

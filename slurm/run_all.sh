@@ -25,5 +25,7 @@ for DSET_NAME in "ads" "aamas1" "aamas2" "aamas3"; do
   for CONF_LEVEL in 0.7 0.8 0.9 0.95; do
     ./submit_compute_allocations.sbatch ${DSET_NAME} adv_usw ${CONF_LEVEL}
     sleep 1
+    ./submit_compute_allocations.sbatch ${DSET_NAME} adv_gesw ${CONF_LEVEL}
+    sleep 1
   done
 done
