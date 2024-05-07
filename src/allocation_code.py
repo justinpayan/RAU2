@@ -169,7 +169,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
     final_alloc = np.zeros_like(central_estimate)
     for gidx in range(len(set(groups))):
         gmask = np.where(groups == gidx)[0]
-        final_alloc[:, gmask] = group_allocs[gidx]
+        final_alloc[:, gmask] = group_allocs[gidx].reshape(final_alloc[:, gmask].shape)
     return final_alloc
 
 def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups):
@@ -193,7 +193,7 @@ def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_p
     final_alloc = np.zeros_like(central_estimate)
     for gidx in range(len(set(groups))):
         gmask = np.where(groups == gidx)[0]
-        final_alloc[:, gmask] = group_allocs[gidx]
+        final_alloc[:, gmask] = group_allocs[gidx].reshape(final_alloc[:, gmask].shape)
     return final_alloc
 
 
@@ -359,7 +359,6 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
     f_vals = []
     x_vals = []
     Allocs = []
-    load_sum = None
 
     for gdx in range(ngroups):
         n_agents = phat_l[gdx].shape[0]
@@ -383,7 +382,7 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
         mn = int(n_agents*n_items)
         c_val = np.sum(C)
 
-        e = -1.0 * (c_val * rhs_bd + np.sum(log_one_minus_phat))
+        e = -1.0 * (c_val * rhs_bd + np.sum(C*log_one_minus_phat))
         neg_ones = -1*np.ones(mn)
         c= np.vstack((np.array([e]).reshape(1,1),neg_ones.flatten().reshape(-1,1))).flatten()
         f =  (log_p_phat - log_one_minus_phat).flatten()
@@ -393,12 +392,6 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
         c_vals.append(c)
         f_vals.append(f)
         x_vals.append(x)
-
-        if load_sum is None:
-            load_sum = [A[idx * n_items:idx * (n_items + 1)].sum() for idx in range(n_agents)]
-        else:
-            for idx in range(n_agents):
-                load_sum[idx] += A[idx * n_items:idx * (n_items + 1)].sum()
 
         model.addConstrs(A[i] <= C[i] for i in range(mn))
 
@@ -411,8 +404,13 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
         model.addConstrs((f[jdx]*x[0] - x[jdx+1] <= A_multiplier*A[jdx]   for jdx in range(mn)),name='ctr'+ str(gdx))
         model.addConstr(t<= c@x, name='min_w'+ str(gdx))
 
+    load_sum = model.addMVar(loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
+
+    model.addConstrs(load_sum[idx] == gp.quicksum(
+        Allocs[gdx][idx * phat_l[gdx].shape[1]:(idx + 1) * (phat_l[gdx].shape[1])].sum() for gdx in range(ngroups)) for
+                     idx in range(loads.size))
     total_agents = loads.size
-    model.addConstr(load_sum[idx] <= loads[idx] for idx in range(total_agents))
+    model.addConstrs(load_sum[idx] <= loads[idx] for idx in range(total_agents))
 
     model.setObjective(t, gp.GRB.MAXIMIZE)
     model.setParam('OutputFlag', 1)
