@@ -276,8 +276,6 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
     x_vals = []
     Allocs = []
 
-    load_sum = None
-
     for gdx in range(ngroups):
         print("starting with group ", gdx)
         n_agents = phat_l[gdx].shape[0]
@@ -316,14 +314,6 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
         f_vals.append(f)
         x_vals.append(x)
 
-        if load_sum is None:
-            load_sum = [gp.quicksum(A[idx * n_items:idx * (n_items + 1)]) for idx in range(n_agents)]
-        else:
-            for idx in range(n_agents):
-                load_sum[idx] += gp.quicksum(A[idx * n_items:idx*(n_items + 1)])
-        # print("load_sum:")
-        # print(load_sum)
-
         model.addConstrs(A[i] <= C[i] for i in range(mn))
 
         model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
@@ -335,6 +325,11 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
         model.addConstrs((f[jdx] * x[0] - x[jdx + 1] <= A_multiplier * A[jdx] for jdx in range(mn)),
                          name='ctr' + str(gdx))
 
+    load_sum = model.addMVar(loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
+
+    model.addConstrs(load_sum[idx] == gp.quicksum(
+        Allocs[gdx][idx * phat_l[gdx].shape[1]:(idx + 1) * (phat_l[gdx].shape[1])].sum() for gdx in range(ngroups)) for
+                     idx in range(loads.size))
     total_agents = loads.size
     model.addConstr(load_sum[idx] <= loads[idx] for idx in range(total_agents))
 

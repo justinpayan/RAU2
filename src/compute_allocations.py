@@ -36,7 +36,7 @@ def load_dset(dset_name, data_dir):
         rhs_bd_per_group = None
 
     elif dset_name == "cs":
-        rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "delta_to_normal_bd.pkl"), 'rb'))
+        rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "final_stat_bd.pkl"), 'rb'))
         central_estimate = np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))
         coi_mask = np.load(os.path.join(data_dir, "cs", "coi_mask.npy"))
 
