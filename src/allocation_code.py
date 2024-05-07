@@ -547,7 +547,7 @@ class ComputeGroupEgalitarianQuadratic():
     def func(self):
 
         # term_sum = 0.0
-        terms = []
+        terms = torch.zeros(self.ngroups)
         for gdx in range(self.ngroups):
 
             Ag = self.A_tl[gdx].flatten()
@@ -564,7 +564,7 @@ class ComputeGroupEgalitarianQuadratic():
             # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
             # print(term)
             # term_sum = term_sum + term
-            terms.append(term1+term2+term3)
+            terms[gdx] += term1+term2+term3
             print()
         return -1*torch.min(terms)
         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
