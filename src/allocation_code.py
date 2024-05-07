@@ -526,8 +526,6 @@ class ComputeGroupEgalitarianQuadratic():
 
         self.optimizer = torch.optim.Adam(params, lr=self.step_size)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
-        print("success")
-
 
     def welfare(self):
         welfares = []
@@ -561,6 +559,7 @@ class ComputeGroupEgalitarianQuadratic():
             term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
             term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]**2
             term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
+            print(term)
             term_sum = term_sum + term
 
         soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
