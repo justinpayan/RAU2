@@ -546,7 +546,8 @@ class ComputeGroupEgalitarianQuadratic():
 
     def func(self):
 
-        term_sum = 0.0
+        # term_sum = 0.0
+        terms = []
         for gdx in range(self.ngroups):
 
             Ag = self.A_tl[gdx].flatten()
@@ -560,13 +561,14 @@ class ComputeGroupEgalitarianQuadratic():
             term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
             term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]
             print(term1, term2, term3)
-            term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
-            print(term)
-            term_sum = term_sum + term
+            # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
+            # print(term)
+            # term_sum = term_sum + term
+            terms.append(term1+term2+term3)
             print()
-
-        soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
-        return -soft_min
+        return -1*torch.softmin(terms)
+        # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
+        # return -soft_min
 
 
     def gradient_descent(self):
