@@ -433,16 +433,16 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
     total_agents = loads.size
     m.addConstrs(load_sum[idx] <= loads[idx] for idx in range(total_agents))
 
-    print([x.shape for x in coi_mask_list])
-    print(rad_list)
-    print([x.shape for x in mu_list])
-    print([x.shape for x in Sigma_list])
-    # print([x.X for x in lamda_list])
-    print([x.shape for x in beta_list])
-    print([x.shape for x in alloc_list])
-    print([x.shape for x in temp_list])
+    # print([x.shape for x in coi_mask_list])
+    # print(rad_list)
+    # print([x.shape for x in mu_list])
+    # print([x.shape for x in Sigma_list])
+    # # print([x.X for x in lamda_list])
+    # print([x.shape for x in beta_list])
+    # print([x.shape for x in alloc_list])
+    # print([x.shape for x in temp_list])
     m.setObjective(gp.quicksum((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @ mu_list[gdx].flatten() -
-                               ((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @  Sigma_list[gdx].flatten() @ temp_list[gdx]) -
+                               ((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @  np.diag(Sigma_list[gdx].flatten()) @ temp_list[gdx]) -
                                lamda_list[gdx]*rad_list[gdx] for gdx in range(ngroups)), gp.GRB.MAXIMIZE)
     m.setParam('OutputFlag', 1)
 
@@ -519,8 +519,7 @@ class ComputeGroupEgalitarianQuadratic():
             self.mu_tl.append(torch.Tensor(self.mu_list[gdx]))
             self.beta_tns.append(torch.rand(self.beta_list[gdx].shape,requires_grad=True))
             self.A_tl.append(torch.rand(self.A_list[gdx].shape, requires_grad=True))
-            self.sigma_tns.append(torch.Tensor(self.Sigma_list[gdx]))
-            self.sigma_tns.append(torch.Tensor(self.Sigma_list[gdx]))
+            self.sigma_tns.append(torch.Tensor(np.diag(self.Sigma_list[gdx])))
             self.coi_tns.append(torch.Tensor(self.coi_mask_list[gdx]))
             params.append(self.A_tl[gdx])
             params.append(self.beta_tns[gdx])
