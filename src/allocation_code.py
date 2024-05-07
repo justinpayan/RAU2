@@ -437,7 +437,7 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
     print(rad_list)
     print([x.shape for x in mu_list])
     print([x.shape for x in Sigma_list])
-    print([x.X.shape for x in lamda_list])
+    print([x.X for x in lamda_list])
     print([x.X.shape for x in beta_list])
     print([x.X.shape for x in alloc_list])
     print([x.X.shape for x in temp_list])
