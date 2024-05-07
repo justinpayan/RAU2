@@ -526,7 +526,7 @@ class ComputeGroupEgalitarianQuadratic():
             Ag = self.A_tl[gdx].flatten()
             Bg = self.beta_tns[gdx].flatten()
             Vg = self.mu_tl[gdx].flatten()
-            Sigma_g = self.sigma_tns[gdx]
+            Sigma_g = self.sigma_tns[gdx].flatten()
             Cg = self.coi_tns[gdx].flatten()
             term1 = torch.sum((Cg*(Ag - Bg)).flatten() * Vg.flatten())
             temp = (Cg*(Ag - Bg)).reshape(-1, 1)
@@ -546,7 +546,7 @@ class ComputeGroupEgalitarianQuadratic():
             Bg = self.beta_tns[gdx].flatten()
             Vg = self.mu_tl[gdx].flatten()
             Cg = self.coi_tns[gdx].flatten()
-            Sigma_g = self.sigma_tns[gdx]
+            Sigma_g = self.sigma_tns[gdx].flatten()
             term1 = torch.sum((Cg*(Ag - Bg)).flatten()*Vg.flatten())
             temp = (Cg*(Ag-Bg)).reshape(-1,1)
             term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
