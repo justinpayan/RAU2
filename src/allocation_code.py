@@ -566,7 +566,7 @@ class ComputeGroupEgalitarianQuadratic():
             # term_sum = term_sum + term
             terms.append(term1+term2+term3)
             print()
-        return -1*torch.softmin(terms)
+        return -1*torch.min(terms)
         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         # return -soft_min
 
