@@ -519,7 +519,7 @@ class ComputeGroupEgalitarianQuadratic():
             self.mu_tl.append(torch.Tensor(self.mu_list[gdx]))
             self.beta_tns.append(torch.rand(self.beta_list[gdx].shape,requires_grad=True))
             self.A_tl.append(torch.rand(self.A_list[gdx].shape, requires_grad=True))
-            self.sigma_tns.append(torch.Tensor(np.diag(self.Sigma_list[gdx])))
+            self.sigma_tns.append(torch.Tensor(np.diag(self.Sigma_list[gdx].flatten())))
             self.coi_tns.append(torch.Tensor(self.coi_mask_list[gdx]))
             params.append(self.A_tl[gdx])
             params.append(self.beta_tns[gdx])
