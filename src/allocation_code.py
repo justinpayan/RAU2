@@ -433,6 +433,8 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
     total_agents = loads.size
     m.addConstrs(load_sum[idx] <= loads[idx] for idx in range(total_agents))
 
+    print([x.shape for x in coi_mask_list])
+    print(rad_list)
     m.setObjective(gp.quicksum((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @ mu_list[gdx].flatten() - ((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @  Sigma_list[gdx].flatten() @ temp_list[gdx]) - lamda_list[gdx]* rad_list[gdx] for gdx in range(ngroups)), gp.GRB.MAXIMIZE)
     m.setParam('OutputFlag', 1)
 
@@ -785,7 +787,7 @@ class ComputeGroupUtilitarianQuadratic():
             Ag = self.A_tl[gdx].flatten()
             Bg = self.beta_tns[gdx].flatten()
             Vg = self.mu_tl[gdx].flatten()
-            Sigma_g = self.sigma_tns[gdx]
+            Sigma_g = self.sigma_tns[gdx].flatten()
             term1 = torch.sum((Ag - Bg).flatten() * Vg.flatten())
             temp = (Ag - Bg).reshape(-1, 1)
             term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
@@ -807,7 +809,7 @@ class ComputeGroupUtilitarianQuadratic():
             Ag = self.A_tl[gdx].flatten()
             Bg = self.beta_tns[gdx].flatten()
             Vg = self.mu_tl[gdx].flatten()
-            Sigma_g = self.sigma_tns[gdx]
+            Sigma_g = self.sigma_tns[gdx].flatten()
             term1 = torch.sum((Ag - Bg).flatten()*Vg.flatten())
             temp = (Ag-Bg).reshape(-1,1)
             term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
