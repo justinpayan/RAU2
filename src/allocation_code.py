@@ -331,7 +331,7 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
         Allocs[gdx][idx * phat_l[gdx].shape[1]:(idx + 1) * (phat_l[gdx].shape[1])].sum() for gdx in range(ngroups)) for
                      idx in range(loads.size))
     total_agents = loads.size
-    model.addConstr(load_sum[idx] <= loads[idx] for idx in range(total_agents))
+    model.addConstrs(load_sum[idx] <= loads[idx] for idx in range(total_agents))
 
     model.setObjective(gp.quicksum(c_vals[idx] @ x_vals[idx] for idx in range(ngroups)), gp.GRB.MAXIMIZE)
     model.setParam('OutputFlag', 1)
