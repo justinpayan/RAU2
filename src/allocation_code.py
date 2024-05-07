@@ -435,12 +435,12 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
 
     print([x.shape for x in coi_mask_list])
     print(rad_list)
-    print([x.shape for x in lamda_list])
-    print([x.shape for x in beta_list])
-    print([x.shape for x in alloc_list])
     print([x.shape for x in mu_list])
     print([x.shape for x in Sigma_list])
-    print([x.shape for x in temp_list])
+    print([x.X.shape for x in lamda_list])
+    print([x.X.shape for x in beta_list])
+    print([x.X.shape for x in alloc_list])
+    print([x.X.shape for x in temp_list])
     m.setObjective(gp.quicksum((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @ mu_list[gdx].flatten() -
                                ((coi_mask_list[gdx].flatten()*(alloc_list[gdx]-beta_list[gdx])) @  Sigma_list[gdx].flatten() @ temp_list[gdx]) -
                                lamda_list[gdx]*rad_list[gdx] for gdx in range(ngroups)), gp.GRB.MAXIMIZE)
