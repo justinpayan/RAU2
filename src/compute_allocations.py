@@ -3,7 +3,10 @@ import numpy as np
 import os
 import pickle
 import sys
+
 from allocation_code import solve_usw_gurobi, solve_gesw, solve_cvar_usw, solve_cvar_gesw, solve_adv_usw, solve_adv_gesw
+from scipy.stats import chi2
+
 
 dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ads": "Advertising", "cs": "cs"}
 
@@ -22,7 +25,16 @@ def load_dset(dset_name, data_dir):
         covs_lb = cs[idx-1] * np.ones(central_estimate.shape[1])
         covs_ub = covs_lb
         loads = ls[idx-1] * np.ones(central_estimate.shape[0])
-        rhs_bd_per_group = None
+
+        ngroups = len(set(groups))
+
+        rhs_bd_per_group = {}
+        for delta in [.3, .2, .1, .05]:
+            rhs_bd_per_group[delta] = []
+            for gidx in range(ngroups):
+                gmask = np.where(groups == gidx)[0]
+                c_value = np.sum(coi_mask[:, gmask])
+                rhs_bd_per_group[delta].append(chi2.ppf(1-(delta/ngroups), df=c_value))
 
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
@@ -33,7 +45,15 @@ def load_dset(dset_name, data_dir):
         covs_ub = 100*np.ones(central_estimate.shape[1])
         loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
         groups = np.load(os.path.join(data_dir, "Advertising", "groups.npy"))
-        rhs_bd_per_group = None
+
+        ngroups = len(set(groups))
+        rhs_bd_per_group = {}
+        for delta in [.3, .2, .1, .05]:
+            rhs_bd_per_group[delta] = []
+            for gidx in range(ngroups):
+                gmask = np.where(groups == gidx)[0]
+                c_value = np.sum(coi_mask[:, gmask])
+                rhs_bd_per_group[delta].append(chi2.ppf(1 - (delta / ngroups), df=c_value))
 
     elif dset_name == "cs":
         rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "delta_to_normal_bd.pkl"), 'rb'))
