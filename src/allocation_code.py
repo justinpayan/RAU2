@@ -484,7 +484,7 @@ class ComputeGroupEgalitarianQuadratic():
         self.step_size = step_size
         self.n_iter = n_iter
 
-        self.eta = 10
+        self.eta = .1
 
         self.ngroups = len(self.mu_list)
         self.nA_list = []
@@ -572,7 +572,7 @@ class ComputeGroupEgalitarianQuadratic():
 
         for i in range(self.n_iter):
             loss = self.func()
-            print(f"Iter {iter} Loss {loss}")
+            print(f"Iter {i} Loss {loss}")
             # storing the calculated loss in a list
             loss_BGD.append(loss.item())
             # backward pass for computing the gradients of the loss w.r.t to learnable parameters
