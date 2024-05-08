@@ -161,7 +161,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
-        obj = UtilitarianAlternation(ce_l, covs_ub_l, covs_lb_l, loads, [np.diag(s.flatten()) for s in sd_l], rhs_bd_per_group)
+        obj = UtilitarianAlternation(ce_l, covs_ub_l, covs_lb_l, loads, [s.flatten() for s in sd_l], rhs_bd_per_group)
         group_allocs, _ = obj.iterative_optimization()
         # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
         #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
@@ -306,7 +306,7 @@ class UtilitarianAlternation():
             A = allocs[gdx].flatten()
             beta = betas[gdx].flatten()
             temp = (A- beta).reshape(1,-1)
-            x = np.matmul(np.matmul(temp,self.Sigma_list[gdx]), temp.transpose())[0][0]
+            x = np.matmul(temp*self.Sigma_list[gdx], temp.transpose())[0][0]
             y = 4*(self.rad_list[gdx]**2) + 1e-10
             lamda = np.abs(np.sqrt(x/y))
 
@@ -326,7 +326,7 @@ class UtilitarianAlternation():
             beta =betas[gdx].flatten()
             lamda = lamdas[gdx]
             temp = (A-beta).reshape(1,-1)
-            welfare = np.dot((A-beta),self.mu_list[gdx].flatten()) - np.matmul(np.matmul(temp,self.Sigma_list[gdx]),temp.transpose())/(4*lamda) - lamda*self.rad_list[gdx]**2
+            welfare = np.dot((A-beta),self.mu_list[gdx].flatten()) - np.matmul(temp*self.Sigma_list[gdx],temp.transpose())/(4*lamda) - lamda*self.rad_list[gdx]**2
             welfare_util+= welfare
         return welfare_util
 
@@ -409,7 +409,7 @@ class UtilitarianAlternation():
                          for idx in range(self.loads.size))
 
         model.setObjective(gp.quicksum((alloc_list[gdx] - beta_list[gdx]) @ self.mu_list[gdx].flatten() - (
-                    (alloc_list[gdx] - beta_list[gdx]) @ self.Sigma_list[gdx] @ temp_list[gdx]) -  self.lamda[gdx]*self.rad_list[gdx]**2 for
+                    self.Sigma_list[gdx]*(alloc_list[gdx] - beta_list[gdx]) @ temp_list[gdx]) -  self.lamda[gdx]*self.rad_list[gdx]**2 for
                                    gdx in range(ngroups)), gp.GRB.MAXIMIZE)
         # model.setParam('OutputFlag', 1)
 
