@@ -306,14 +306,15 @@ class UtilitarianAlternation():
             A = allocs[gdx].flatten()
             beta = betas[gdx].flatten()
             temp = (A- beta).reshape(1,-1)
-            x = np.matmul(np.matmul(temp,self.Sigma_list[gdx]), temp.transpose())
+            x = np.matmul(np.matmul(temp,self.Sigma_list[gdx]), temp.transpose())[0][0]
             y = 4*(self.rad_list[gdx]**2) + 1e-10
             lamda = np.abs(np.sqrt(x/(2*y)))
-            print("got lambda", lamda)
 
             lamdas.append(lamda)
-        lamda = np.array(lamdas)
-        return lamda
+        lamdas = np.array(lamdas)
+        print("got lambda", lamdas)
+
+        return lamdas
 
 
 
