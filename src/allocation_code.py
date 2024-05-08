@@ -161,7 +161,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
-        obj = UtilitarianAlternation(ce_l, covs_ub_l, covs_lb_l, loads, sd_l, rhs_bd_per_group)
+        obj = UtilitarianAlternation(ce_l, covs_ub_l, covs_lb_l, loads, [np.diag(s.flatten()) for s in sd_l], rhs_bd_per_group)
         group_allocs, _ = obj.iterative_optimization()
         # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
         #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
