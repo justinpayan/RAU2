@@ -161,8 +161,11 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
-        group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
-                                                         sd_l, coi_mask_l, rhs_bd_per_group)
+        obj = UtilitarianAlternation(ce_l, covs_ub_l, covs_lb_l, loads, sd_l, rhs_bd_per_group)
+        obj.iterative_optimization()
+        group_allocs = obj.mu_list
+        # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
+        #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
 
     # Stitch together group_allocs into a single allocation and return it
     final_alloc = np.zeros_like(central_estimate)
@@ -272,6 +275,160 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
     return final_allocs, obj.getValue()
 
 
+class UtilitarianAlternation():
+    def __init__(self, mu_list, covs_ub_list, covs_lb_list, loads, Sigma_list, rad_list, n_iter=1000, integer=False):
+
+        self.mu_list = mu_list
+        self.Sigma_list = Sigma_list
+        self.rad_list = rad_list
+        self.covs_ub_list = covs_ub_list
+        self.covs_lb_list = covs_lb_list
+        self.loads = loads
+        self.n_iter = n_iter
+        self.integer = integer
+
+
+        self.ngroups = len(self.mu_list)
+        self.nA_list = []
+        self.nI_list = []
+        for idx in range(self.ngroups):
+
+            nA = self.mu_list[idx].shape[0]
+            nI = self.mu_list[idx].shape[1]
+            self.nA_list.append(nA)
+            self.nI_list.append(nI)
+
+        self.lamda = np.random.randint(1,2,self.ngroups)
+        self.betas = None
+
+    def optimize_lambda(self, allocs, betas):
+        lamdas = []
+        for gdx in range(self.ngroups):
+            A = allocs[gdx].flatten()
+            beta = betas[gdx].flatten()
+            temp = (A- beta).reshape(1,-1)
+            x = np.matmul(np.matmul(temp,self.Sigma_list[gdx]), temp.transpose())
+            y = 4*(self.rad_list[gdx]**2) + 1e-10
+            lamda = np.abs(np.sqrt(x/(2*y)))
+
+            lamdas.append(lamda)
+        self.lamda = np.array(lamdas)
+        return self.lamda
+
+
+
+
+    def compute_welfare(self, allocs, betas, lamdas):
+        welfare_util=0.0
+        for gdx in range(self.ngroups):
+            A = allocs[gdx].flatten()
+            beta =betas[gdx].flatten()
+            lamda = lamdas[gdx]
+            temp = (A-beta).reshape(1,-1)
+            welfare = np.dot((A-beta),self.mu_list[gdx].flatten()) - np.matmul(np.matmul(temp,self.Sigma_list[gdx]),temp.transpose())/(4*lamda) - lamda*self.rad_list[gdx]**2
+            welfare_util+= welfare
+        return welfare_util
+
+    def iterative_optimization(self, niters=1000, eps=1e-5):
+        welfare=None
+        prev_welfare=None
+        for iter in range(niters):
+            allocs, betas = self.optimize_a_beta()
+
+            lamda = self.optimize_lambda(allocs, betas)
+            new_welfare = self.compute_welfare(allocs,betas,lamda)
+            if prev_welfare is None:
+                prev_welfare = new_welfare
+            else:
+                prev_welfare = welfare
+            welfare = new_welfare
+            if iter!=0 and np.abs(prev_welfare-welfare)<eps:
+                print("got welfare", welfare)
+                break
+            print(f"Iter: {iter} Utilitarian welfare: {welfare}")
+        return welfare
+
+
+    def optimize_a_beta(self):
+
+        ngroups = len(self.mu_list)
+        beta_list = []
+        alloc_list = []
+        temp_list = []
+        model = gp.Model()
+
+        for gdx in range(ngroups):
+            tpms = np.array(self.mu_list[gdx])
+            n_reviewers = int(tpms.shape[0])
+            n_papers = int(tpms.shape[1])
+
+            assert (np.all(self.covs_ub_list[gdx] <= n_reviewers))
+
+
+            num = int(n_reviewers * n_papers)
+
+
+            beta_g = model.addMVar(num, lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="beta" + str(gdx))
+
+
+            temp_g = model.addMVar(num, lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="temp" + str(gdx))
+
+            beta_list.append(beta_g)
+            temp_list.append(temp_g)
+            if self.integer == True:
+                alloc_g = model.addMVar(num, lb=0, ub=1, vtype=gp.GRB.INTEGER, name="alloc" + str(gdx))
+            else:
+                alloc_g = model.addMVar(num, lb=0, ub=1, vtype=gp.GRB.CONTINUOUS, name="alloc" + str(gdx))
+
+            alloc_list.append(alloc_g)
+
+            zeros = np.zeros(num)
+            model.addConstr(beta_g >= zeros, name='c8' + str(gdx))
+            n_agents = tpms.shape[0]
+            n_items = tpms.shape[1]
+            covs_ub = self.covs_ub_list[gdx]
+            covs_lb = self.covs_lb_list[gdx]
+
+            model.addConstrs(gp.quicksum(alloc_g[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
+                             range(n_items))
+
+            model.addConstrs(gp.quicksum(alloc_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
+                             range(n_items))
+
+            model.addConstr(temp_g == (alloc_g - beta_g) * (1.0/(4*self.lamda[gdx])))
+
+        load_sum = model.addMVar(self.loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS,
+                                 name='load_sum')
+
+        model.addConstrs(load_sum[idx] == gp.quicksum(
+            alloc_list[gdx][idx * self.mu_list[gdx].shape[1]:(idx + 1) * (self.mu_list[gdx].shape[1])].sum() for gdx in range(ngroups))
+                         for idx in range(self.loads.size))
+
+        model.setObjective(gp.quicksum((alloc_list[gdx] - beta_list[gdx]) @ self.mu_list[gdx].flatten() - (
+                    (alloc_list[gdx] - beta_list[gdx]) @ self.Sigma_list[gdx] @ temp_list[gdx]) -  self.lamda[gdx]*self.rad_list[gdx]**2 for
+                                   gdx in range(ngroups)), gp.GRB.MAXIMIZE)
+        model.setParam('OutputFlag', 1)
+
+        model.setParam('MIPGap', 0.05)
+
+        model.optimize()
+        print("objective", model.ObjVal)
+
+        allocs = []
+        betas = []
+        for g in range(ngroups):
+            alloc_v = alloc_list[g].X
+
+            beta_v = beta_list[g].X
+            allocs.append(np.array(list(alloc_v)).reshape(self.mu_list[g].shape))
+            betas.append(np.array(list(beta_v)).reshape(self.mu_list[g].shape))
+
+        model.dispose()
+
+        del model
+        self.mu_list = allocs
+        self.betas = betas
+        return allocs, betas
 
 
 def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, covs_lb_l, covs_ub_l, milp=False):
@@ -469,6 +626,8 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
 
     del m
     return allocs
+
+
 
 
 class ComputeGroupEgalitarianQuadratic():
