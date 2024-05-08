@@ -162,8 +162,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
         obj = UtilitarianAlternation(ce_l, covs_ub_l, covs_lb_l, loads, sd_l, rhs_bd_per_group)
-        obj.iterative_optimization()
-        group_allocs = obj.mu_list
+        group_allocs, _ = obj.iterative_optimization()
         # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
         #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
 
@@ -310,10 +309,11 @@ class UtilitarianAlternation():
             x = np.matmul(np.matmul(temp,self.Sigma_list[gdx]), temp.transpose())
             y = 4*(self.rad_list[gdx]**2) + 1e-10
             lamda = np.abs(np.sqrt(x/(2*y)))
+            print("got lambda", lamda)
 
             lamdas.append(lamda)
-        self.lamda = np.array(lamdas)
-        return self.lamda
+        lamda = np.array(lamdas)
+        return lamda
 
 
 
@@ -332,10 +332,13 @@ class UtilitarianAlternation():
     def iterative_optimization(self, niters=1000, eps=1e-5):
         welfare=None
         prev_welfare=None
+        allocs=None
+        betas=None
         for iter in range(niters):
             allocs, betas = self.optimize_a_beta()
 
             lamda = self.optimize_lambda(allocs, betas)
+            self.lamda = np.array(lamda)
             new_welfare = self.compute_welfare(allocs,betas,lamda)
             if prev_welfare is None:
                 prev_welfare = new_welfare
@@ -346,7 +349,7 @@ class UtilitarianAlternation():
                 print("got welfare", welfare)
                 break
             print(f"Iter: {iter} Utilitarian welfare: {welfare}")
-        return welfare
+        return welfare, allocs, betas
 
 
     def optimize_a_beta(self):
@@ -407,7 +410,7 @@ class UtilitarianAlternation():
         model.setObjective(gp.quicksum((alloc_list[gdx] - beta_list[gdx]) @ self.mu_list[gdx].flatten() - (
                     (alloc_list[gdx] - beta_list[gdx]) @ self.Sigma_list[gdx] @ temp_list[gdx]) -  self.lamda[gdx]*self.rad_list[gdx]**2 for
                                    gdx in range(ngroups)), gp.GRB.MAXIMIZE)
-        model.setParam('OutputFlag', 1)
+        # model.setParam('OutputFlag', 1)
 
         model.setParam('MIPGap', 0.05)
 
@@ -426,8 +429,8 @@ class UtilitarianAlternation():
         model.dispose()
 
         del model
-        self.mu_list = allocs
-        self.betas = betas
+        # self.mu_list = allocs
+        # self.betas = betas
         return allocs, betas
 
 
