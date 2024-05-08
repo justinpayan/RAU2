@@ -308,7 +308,7 @@ class UtilitarianAlternation():
             temp = (A- beta).reshape(1,-1)
             x = np.matmul(np.matmul(temp,self.Sigma_list[gdx]), temp.transpose())[0][0]
             y = 4*(self.rad_list[gdx]**2) + 1e-10
-            lamda = np.abs(np.sqrt(x/(2*y)))
+            lamda = np.abs(np.sqrt(x/y))
 
             lamdas.append(lamda)
         lamdas = np.array(lamdas)
