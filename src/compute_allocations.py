@@ -73,14 +73,17 @@ def load_dset(dset_name, data_dir):
 
     return central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group
 
-# If std_devs is None, assume the central_estimate are the parameters of a multivariate Bernoulli
+# If doing on cs or aamas, assume the central_estimate are the parameters of a multivariate Bernoulli
 # else, assume Gaussian.
-def get_samples(central_estimate, std_devs, num_samples=10):
+def get_samples(central_estimate, std_devs, dset_name, num_samples=10):
     rng = np.random.default_rng(seed=0)
-    if std_devs is None:
+    if dset_name == "cs":
         p = (central_estimate + 5)/6
         samples = [rng.uniform(size=p.shape) < p for _ in range(num_samples)]
         return [6 * vs - 5 for vs in samples]
+    elif dset_name.startswith("aamas"):
+        samples = [rng.uniform(size=central_estimate.shape) < central_estimate for _ in range(num_samples)]
+        return samples
     else:
         return [rng.normal(central_estimate, std_devs) for _ in range(num_samples)]
 
@@ -106,7 +109,7 @@ def main(args):
         alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
     if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs)
+        value_samples = get_samples(central_estimate, std_devs, dset_name)
 
     if alloc_type == "cvar_usw":
         alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)

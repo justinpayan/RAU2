@@ -11,3 +11,17 @@ def compute_gesw(allocation, central_estimate, groups):
         gmask = np.where(groups == gidx)[0]
         welfares.append(compute_usw(allocation[:, gmask], central_estimate[:, gmask]))
     return np.min(welfares)
+
+def compute_cvar_usw(allocation, value_samples, conf_level):
+    usws = []
+    for vs in value_samples:
+        usws.append(compute_usw(allocation, vs))
+    cutoff = int(len(usws)*conf_level)
+    return np.mean(sorted(usws)[:cutoff])
+
+def compute_cvar_gesw(allocation, value_samples, groups, conf_level):
+    gesws = []
+    for vs in value_samples:
+        gesws.append(compute_gesw(allocation, vs, groups))
+    cutoff = int(len(gesws)*conf_level)
+    return np.mean(sorted(gesws)[:cutoff])
