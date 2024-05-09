@@ -754,7 +754,7 @@ class ComputeGroupEgalitarianQuadratic():
         w_welfare = None
         for i in range(self.n_iter):
             loss = self.func() + self.compute_penalty()
-            print(f"Iter {i} Loss {loss}")
+            print(f"Iter {i} Loss {loss}", flush=True)
             # storing the calculated loss in a list
             loss_BGD.append(loss.item())
             # backward pass for computing the gradients of the loss w.r.t to learnable parameters
@@ -779,7 +779,7 @@ class ComputeGroupEgalitarianQuadratic():
                 self.Lamda_tns.data = torch.Tensor(torch.maximum(torch.zeros(self.Lamda_tns.shape),self.Lamda_tns[idx].data))
             # self.Lamda_tns.data = torch.Tensor(projected_lamda)
 
-            # self.scheduler.step(loss.item())
+            self.scheduler.step(loss.item())
             if i==0:
                 prev_w_welfare = loss.item()
                 w_welfare = loss.item()
@@ -791,7 +791,7 @@ class ComputeGroupEgalitarianQuadratic():
                     break
 
             if i%20==0:
-                print(f'Iter: {i}, \tLoss: {loss.item()} ')
+                print(f'Iter: {i}, \tLoss: {loss.item()} ', flush=True)
 
         projected_A, projected_beta, projected_lamda = self.projection(self.A_tl,self.beta_tns,self.Lamda_tns)
         for idx in range(self.ngroups):
