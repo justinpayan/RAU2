@@ -185,7 +185,7 @@ def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_p
         step_size = .1
         # def __init__(self, mu_list, covs_lb_list, cov_ub_list, loads, Sigma_list, rad_list, eta, step_size, penalty_wt,
         # egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads, [s**2 for s in sd_l], rhs_bd_per_group, .1, step_size, .1)
-        egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, .1, step_size, .1)
+        egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, 1e-3, step_size, 1e-5)
 
         egalObject.gradient_descent()
 
