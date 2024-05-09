@@ -736,7 +736,7 @@ class ComputeGroupEgalitarianQuadratic():
             temp = (Ag-Bg).reshape(-1,1)
             term2 = -(torch.mm(temp.t()*Sigma_g, temp))/(4*(self.Lamda_tns[gdx]+1e-7))
             term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]**2
-            terms[gdx] += term1+term2+term3
+            terms[gdx] += term1+term2[0,0]+term3
         #     term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
         #     term_sum = term_sum + term
         #
