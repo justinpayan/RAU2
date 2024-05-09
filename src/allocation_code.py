@@ -710,7 +710,7 @@ class ComputeGroupEgalitarianQuadratic():
             Sigma_g = self.sigma_tns[gdx]
             term1 = torch.sum((Ag - Bg).flatten() * Vg.flatten())
             temp = (Ag - Bg).reshape(-1, 1)
-            term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
+            term2 = -(torch.mm(temp.t()* Sigma_g, temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx] ** 2
             w = (term1 + term2 + term3)
             welfares.append(w.detach().cpu().numpy())
@@ -729,7 +729,7 @@ class ComputeGroupEgalitarianQuadratic():
             Sigma_g = self.sigma_tns[gdx]
             term1 = torch.sum((Ag - Bg).flatten()*Vg.flatten())
             temp = (Ag-Bg).reshape(-1,1)
-            term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-7))
+            term2 = -(torch.mm(temp.t()*Sigma_g, temp))/(4*(self.Lamda_tns[gdx]+1e-7))
             term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]**2
             term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
             term_sum = term_sum + term
@@ -752,7 +752,7 @@ class ComputeGroupEgalitarianQuadratic():
             loss_BGD.append(loss.item())
             # backward pass for computing the gradients of the loss w.r.t to learnable parameters
             loss.backward()
-            #TODO: Check if params contains references
+            # Check if params contains references
             params = [self.Lamda_tns]
             params += [self.A_tl[idx] for idx in range(self.ngroups)]
             params += [self.beta_tns[idx] for idx in range(self.ngroups)]
