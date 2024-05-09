@@ -49,8 +49,7 @@ def main(args):
 
     conf_levels = [.7, .8, .9, .95]
 
-    if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs, dset_name)
+    value_samples = get_samples(central_estimate, std_devs, dset_name)
 
     for c in conf_levels:
         metrics_to_values['cvar_usw'][c] = compute_cvar_usw(allocation, value_samples, c)
