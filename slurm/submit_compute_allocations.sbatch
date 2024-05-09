@@ -8,7 +8,7 @@ sbatch \
 --job-name=${DSET_NAME}_${ALLOC_TYPE}_${CONF_LEVEL} \
 --output=/mnt/nfs/scratch1/jpayan/logs/RAU2/${DSET_NAME}_${ALLOC_TYPE}_${CONF_LEVEL}_alloc.out \
 --error=/mnt/nfs/scratch1/jpayan/logs/RAU2/${DSET_NAME}_${ALLOC_TYPE}_${CONF_LEVEL}_alloc.err \
---mem=64G \
+--mem=32G \
 --nodes=1 \
 --ntasks=1 \
 --time=0-04:00:00 \
