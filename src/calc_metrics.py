@@ -62,7 +62,9 @@ def main(args):
         delta = np.round(1 - conf_level, decimals=2)
         if dset_name == "cs":
             central_estimate = (central_estimate + 5) / 6
-        adv_usw = compute_adv_usw_linear(central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
+        adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
+        if dset_name == "cs":
+            adv_usw = 6*adv_usw - 5*np.sum(allocation)
         metrics_to_values['adv_usw'][c] = adv_usw
 
         print("Calculating adv gesw", flush=True)
