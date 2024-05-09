@@ -6,8 +6,10 @@ from collections import Counter
 import gurobipy as gp
 from gurobipy import Model, multidict, GRB
 
-torch.random_seed(10)
-
+import random
+random.seed(10)
+np.random.seed(10)
+torch.manual_seed(0)
 
 def solve_usw_gurobi(affinity_scores, covs_lb, covs_ub, loads, coi_mask):
     m = Model("TPMS")
