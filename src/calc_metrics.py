@@ -52,9 +52,13 @@ def main(args):
     value_samples = get_samples(central_estimate, std_devs, dset_name)
 
     for c in conf_levels:
+        print("Calculating cvar usw", flush=True)
         metrics_to_values['cvar_usw'][c] = compute_cvar_usw(allocation, value_samples, c)
+        print("Calculating cvar gesw", flush=True)
         metrics_to_values['cvar_gesw'][c] = compute_cvar_gesw(allocation, value_samples, groups, c)
+        print("Calculating adv usw", flush=True)
         metrics_to_values['adv_usw'][c] = 0.0
+        print("Calculating adv gesw", flush=True)
         metrics_to_values['adv_gesw'][c] = 0.0
 
     print(metrics_to_values, flush=True)
