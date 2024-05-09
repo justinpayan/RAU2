@@ -5,6 +5,7 @@ import pickle
 import sys
 
 from allocation_code import solve_usw_gurobi, solve_gesw, solve_cvar_usw, solve_cvar_gesw, solve_adv_usw, solve_adv_gesw
+from metric_code import compute_usw, compute_gesw
 from scipy.stats import chi2
 
 
@@ -96,41 +97,47 @@ def main(args):
 
     central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir)
 
-    print("Loaded dataset %s, computing %s allocation" % (dset_name, alloc_type), flush=True)
-
-    # If we are wanting exp_usw_max or exp_gesw_max, we can just compute those using the central estimates.
-    # Save the results to outputs/{AAMAS, Advertising, cs}
-    if alloc_type == "exp_usw_max":
-        alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads, coi_mask)
-    elif alloc_type == "exp_gesw_max":
-        alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
-
-    if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs)
-
-    if alloc_type == "cvar_usw":
-        alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
-    elif alloc_type == "cvar_gesw":
-        alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
-
-    if alloc_type == "adv_usw":
-        delta = np.round(1-conf_level, decimals=2)
-        if dset_name == "cs":
-            central_estimate = (central_estimate + 5) / 6
-        alloc = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
-    elif alloc_type == "adv_gesw":
-        delta = np.round(1-conf_level, decimals=2)
-        if dset_name == "cs":
-            central_estimate = (central_estimate + 5) / 6
-        alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
-
-    print("Saving allocation", flush=True)
+    print("Loaded dataset %s, loading %s allocation. Conf level %.2f" % (dset_name, alloc_type, conf_level), flush=True)
 
     if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-        np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
+        alloc_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level))
     else:
-        np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
+        alloc_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_alloc.npy" % alloc_type)
 
+    allocation = np.load(alloc_fname)
+
+    # First get the USW and GESW for this allocation under the expected values
+    print("Computing USW and GESW on expected values", flush=True)
+    usw = compute_usw(allocation, central_estimate)
+    gesw = compute_gesw(allocation, central_estimate, groups)
+
+    print("Done with USW/ESW", flush=True)
+
+    # Save it all in a dictionary, print and dump
+    conf_levels = [.7, .8, .9, .95]
+    metrics_to_values = {}
+    metrics_to_values['usw'] = usw
+    metrics_to_values['gesw'] = gesw
+
+    metrics_to_values['cvar_usw'] = {}
+    metrics_to_values['cvar_gesw'] = {}
+    metrics_to_values['adv_usw'] = {}
+    metrics_to_values['adv_gesw'] = {}
+
+    for c in conf_levels:
+        metrics_to_values['cvar_usw'][c] = 0.0
+        metrics_to_values['cvar_gesw'][c] = 0.0
+        metrics_to_values['adv_usw'][c] = 0.0
+        metrics_to_values['adv_gesw'][c] = 0.0
+
+    print(metrics_to_values, flush=True)
+
+    if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
+        metric_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_metrics.pkl" % (alloc_type, conf_level))
+    else:
+        metric_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_metrics.pkl" % alloc_type)
+
+    pickle.dump(metrics_to_values, open(metric_fname, 'wb'))
 
 
 if __name__ == "__main__":
