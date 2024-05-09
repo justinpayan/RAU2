@@ -25,3 +25,10 @@ def compute_cvar_gesw(allocation, value_samples, groups, conf_level):
         gesws.append(compute_gesw(allocation, vs, groups))
     cutoff = int(len(gesws)*conf_level)
     return np.mean(sorted(gesws)[:cutoff])
+
+def compute_adv_usw_linear(central_estimate, coi_mask, rhs_bd_per_group, groups):
+
+    return 0.0
+
+def compute_adv_gesw_linear(central_estimate, coi_mask, rhs_bd_per_group, groups):
+    return 0.0

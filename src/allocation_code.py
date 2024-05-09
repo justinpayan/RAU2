@@ -211,6 +211,8 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
     x_vals = []
     Allocs = []
 
+    eps = 1e-6
+
     for gdx in range(ngroups):
         print("starting with group ", gdx)
         n_agents = phat_l[gdx].shape[0]
@@ -228,8 +230,8 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
             A = model.addMVar(len(phat_l[gdx].flatten()), lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
         Allocs.append(A)
 
-        log_p_phat = np.log(phat).flatten()
-        log_one_minus_phat = np.log(1 - phat).flatten()
+        log_p_phat = np.log(phat + eps).flatten()
+        log_one_minus_phat = np.log(1 - phat + eps).flatten()
 
         rhs_bd = rhs_bd_per_group[gdx]
 
@@ -469,8 +471,10 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
             A = model.addMVar(len(phat_l[gdx].flatten()),lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
         Allocs.append(A)
 
-        log_p_phat = np.log(phat ).flatten()
-        log_one_minus_phat = np.log(1-phat ).flatten()
+        eps = 1e-6
+
+        log_p_phat = np.log(phat + eps).flatten()
+        log_one_minus_phat = np.log(1-phat + eps).flatten()
         rhs_bd = rhs_bd_per_group[gdx]
 
         mn = int(n_agents*n_items)
@@ -479,7 +483,7 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
         e = -1.0 * (c_val * rhs_bd + np.sum(C*log_one_minus_phat))
         neg_ones = -1*np.ones(mn)
         c= np.vstack((np.array([e]).reshape(1,1),neg_ones.flatten().reshape(-1,1))).flatten()
-        f =  (log_p_phat - log_one_minus_phat).flatten()
+        f =  C*(log_p_phat - log_one_minus_phat).flatten()
 
         x = model.addMVar(mn+1, lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pval")
         e_vals.append(e)

@@ -3,7 +3,7 @@ import numpy as np
 import os
 import pickle
 
-from metric_code import compute_usw, compute_gesw, compute_cvar_usw, compute_cvar_gesw
+from metric_code import compute_usw, compute_gesw, compute_cvar_usw, compute_cvar_gesw, compute_adv_usw_linear, compute_adv_gesw_linear
 from compute_allocations import get_samples, load_dset, dset_name_map
 
 
@@ -54,12 +54,20 @@ def main(args):
     for c in conf_levels:
         print("Calculating cvar usw", flush=True)
         metrics_to_values['cvar_usw'][c] = compute_cvar_usw(allocation, value_samples, c)
+
         print("Calculating cvar gesw", flush=True)
         metrics_to_values['cvar_gesw'][c] = compute_cvar_gesw(allocation, value_samples, groups, c)
+
         print("Calculating adv usw", flush=True)
-        metrics_to_values['adv_usw'][c] = 0.0
+        delta = np.round(1 - conf_level, decimals=2)
+        if dset_name == "cs":
+            central_estimate = (central_estimate + 5) / 6
+        adv_usw = compute_adv_usw_linear(central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
+        metrics_to_values['adv_usw'][c] = adv_usw
+
         print("Calculating adv gesw", flush=True)
-        metrics_to_values['adv_gesw'][c] = 0.0
+        adv_gesw = compute_adv_gesw_linear(central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
+        metrics_to_values['adv_gesw'][c] = adv_gesw
 
     print(metrics_to_values, flush=True)
 
