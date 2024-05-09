@@ -230,8 +230,8 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
             A = model.addMVar(len(phat_l[gdx].flatten()), lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
         Allocs.append(A)
 
-        log_p_phat = np.log(phat + eps).flatten()
-        log_one_minus_phat = np.log(1 - phat + eps).flatten()
+        log_p_phat = np.log(phat).flatten()
+        log_one_minus_phat = np.log(1 - phat).flatten()
 
         rhs_bd = rhs_bd_per_group[gdx]
 
@@ -473,8 +473,8 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
 
         eps = 1e-6
 
-        log_p_phat = np.log(phat + eps).flatten()
-        log_one_minus_phat = np.log(1-phat + eps).flatten()
+        log_p_phat = np.log(phat).flatten()
+        log_one_minus_phat = np.log(1-phat).flatten()
         rhs_bd = rhs_bd_per_group[gdx]
 
         mn = int(n_agents*n_items)

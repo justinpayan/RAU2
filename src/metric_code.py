@@ -49,10 +49,8 @@ def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_gr
         v = m.addMVar(ce.shape)
         aux = m.addMVar(ce.shape)
 
-        eps = 1e-6
-
-        x = np.log(1 - ce + eps)
-        y = np.log(ce + eps)
+        x = np.log(1 - ce)
+        y = np.log(ce)
 
         c_times_x_minus_y = cm * (x - y)
         c_times_x = cm * x
