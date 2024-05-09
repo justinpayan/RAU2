@@ -68,7 +68,9 @@ def main(args):
         metrics_to_values['adv_usw'][c] = adv_usw
 
         print("Calculating adv gesw", flush=True)
-        adv_gesw = compute_adv_gesw_linear(central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
+        adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
+        if dset_name == "cs":
+            adv_gesw = 6*adv_gesw - 5*np.sum(allocation)
         metrics_to_values['adv_gesw'][c] = adv_gesw
 
     print(metrics_to_values, flush=True)

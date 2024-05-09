@@ -69,5 +69,44 @@ def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_gr
     return obj.getValue()
 
 
-def compute_adv_gesw_linear(central_estimate, coi_mask, rhs_bd_per_group, groups):
-    return 0.0
+def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group, groups):
+    m = gp.Model()
+
+    ngroups = len(set(groups))
+
+    obj_terms = []
+
+    x = m.addVar()
+
+    for gidx in range(ngroups):
+        print("setting up group ", gidx)
+        gmask = np.where(groups == gidx)[0]
+
+        a = allocation[:, gmask]
+        ce = central_estimate[:, gmask]
+        nagents, nitems = ce.shape
+        cm = coi_mask[:, gmask]
+        rhs_bd = rhs_bd_per_group[gidx]
+
+        v = m.addMVar(ce.shape)
+        aux = m.addMVar(ce.shape)
+
+        x = np.log(1 - ce)
+        y = np.log(ce)
+
+        c_times_x_minus_y = cm * (x - y)
+        c_times_x = cm * x
+
+        lhs = aux.sum()
+
+        m.addConstr(aux == v * c_times_x_minus_y - c_times_x)
+        m.addConstr(lhs <= np.sum(cm) * rhs_bd)
+        m.addConstr(v >= 0)
+        m.addConstr(v <= 1)
+
+        obj_terms.append((a * v).sum())
+    m.addConstr(x == gp.GRB.min_(obj_terms))
+    m.setObjective(x)
+    m.optimize()
+    m.setParam('OutputFlag', 1)
+    return x.getValue()
