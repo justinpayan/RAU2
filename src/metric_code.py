@@ -4,7 +4,7 @@ import numpy as np
 
 
 def compute_usw(allocation, central_estimate):
-    return np.sum(allocation * central_estimate)
+    return np.sum(allocation * central_estimate)/allocation.shape[1]
 
 def compute_gesw(allocation, central_estimate, groups):
     ngroups = len(set(groups))
