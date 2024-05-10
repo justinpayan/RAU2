@@ -59,7 +59,7 @@ def main(args):
         metrics_to_values['cvar_gesw'][c] = compute_cvar_gesw(allocation, value_samples, groups, c)
 
         print("Calculating adv usw", flush=True)
-        delta = np.round(1 - conf_level, decimals=2)
+        delta = np.round(1 - c, decimals=2)
         if dset_name == "cs":
             central_estimate = (central_estimate + 5) / 6
         adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
