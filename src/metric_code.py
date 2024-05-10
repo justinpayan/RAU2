@@ -77,7 +77,8 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
 
     obj_terms = []
 
-    x = m.addVar()
+    gesw = m.addVar()
+    aux_vars = m.addVars(ngroups, vtype=gp.GRB.CONTINUOUS)
 
     for gidx in range(ngroups):
         print("setting up group ", gidx)
@@ -105,10 +106,12 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
         m.addConstr(lhs <= np.sum(cm) * rhs_bd)
         m.addConstr(v >= 0)
         m.addConstr(v <= 1)
+        m.addConstr(aux_vars[gidx] == (a * v).sum()/grpsize)
 
-        obj_terms.append((a * v).sum()/grpsize)
-    m.addConstr(x == gp.min_(obj_terms))
-    m.setObjective(x)
+#     m.addConstr(gesw == gp.min_([aux_vars[i] for i in range(ngroups)]))
+    m.addConstr(gesw == gp.min_(aux_vars))
+
+    m.setObjective(gesw)
     m.optimize()
     m.setParam('OutputFlag', 1)
-    return x.getValue()
+    return gesw.X
