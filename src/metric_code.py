@@ -65,7 +65,7 @@ def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_gr
     m.setObjective(obj)
     m.optimize()
     m.setParam('OutputFlag', 1)
-    return obj.getValue()
+    return obj.getValue()/allocation.shape[1]
 
 
 def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group, groups):
