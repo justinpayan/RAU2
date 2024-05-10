@@ -108,7 +108,6 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
         m.addConstr(v <= 1)
         m.addConstr(aux_vars[gidx] == (a * v).sum()/grpsize)
 
-#     m.addConstr(gesw == gp.min_([aux_vars[i] for i in range(ngroups)]))
     m.addConstr(gesw == gp.min_(aux_vars))
 
     m.setObjective(gesw)

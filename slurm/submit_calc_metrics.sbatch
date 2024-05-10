@@ -8,7 +8,7 @@ sbatch \
 --job-name=cm_${DSET_NAME}_${ALLOC_TYPE}_${CONF_LEVEL} \
 --output=/mnt/nfs/scratch1/jpayan/logs/RAU2/${DSET_NAME}_${ALLOC_TYPE}_${CONF_LEVEL}_calc_metrics.out \
 --error=/mnt/nfs/scratch1/jpayan/logs/RAU2/${DSET_NAME}_${ALLOC_TYPE}_${CONF_LEVEL}_calc_metrics.err \
---mem=64G \
+--mem=16G \
 --nodes=1 \
 --ntasks=1 \
 --time=0-04:00:00 \
