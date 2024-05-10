@@ -107,7 +107,7 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
         m.addConstr(v <= 1)
 
         obj_terms.append((a * v).sum()/grpsize)
-    m.addConstr(x == gp.GRB.min_(obj_terms))
+    m.addConstr(x == gp.min_(obj_terms))
     m.setObjective(x)
     m.optimize()
     m.setParam('OutputFlag', 1)
