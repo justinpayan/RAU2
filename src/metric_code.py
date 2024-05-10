@@ -39,6 +39,7 @@ def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_gr
     for gidx in range(ngroups):
         print("setting up group ", gidx)
         gmask = np.where(groups == gidx)[0]
+        grpsize = gmask.shape[0]
 
         a = allocation[:, gmask]
         ce = central_estimate[:, gmask]
@@ -61,7 +62,7 @@ def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_gr
         m.addConstr(lhs <= np.sum(cm) * rhs_bd)
         m.addConstr(v >= 0)
         m.addConstr(v <= 1)
-        obj_terms.append((a * v).sum())
+        obj_terms.append((a * v).sum()/grpsize)
     obj = gp.quicksum(t for t in obj_terms)
     m.setObjective(obj)
     m.optimize()
@@ -81,6 +82,7 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
     for gidx in range(ngroups):
         print("setting up group ", gidx)
         gmask = np.where(groups == gidx)[0]
+        grpsize = gmask.shape[0]
 
         a = allocation[:, gmask]
         ce = central_estimate[:, gmask]
@@ -104,7 +106,7 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
         m.addConstr(v >= 0)
         m.addConstr(v <= 1)
 
-        obj_terms.append((a * v).sum())
+        obj_terms.append((a * v).sum()/grpsize)
     m.addConstr(x == gp.GRB.min_(obj_terms))
     m.setObjective(x)
     m.optimize()

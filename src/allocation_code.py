@@ -283,6 +283,85 @@ def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, lo
     return final_allocs, obj.getValue()
 
 
+def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, covs_lb_l, covs_ub_l, milp=False):
+    ngroups = len(phat_l)
+    model = gp.Model()
+
+    t = model.addVar(lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY,vtype=gp.GRB.CONTINUOUS, name='t')
+
+    e_vals = []
+    c_vals = []
+    f_vals = []
+    x_vals = []
+    Allocs = []
+
+    for gdx in range(ngroups):
+        n_agents = phat_l[gdx].shape[0]
+        n_items = phat_l[gdx].shape[1]
+        phat = phat_l[gdx].flatten()
+        C = C_l[gdx].flatten()
+        covs_lb = covs_lb_l[gdx].flatten()
+        covs_ub = covs_ub_l[gdx].flatten()
+
+        A_multiplier = (a_l[gdx] - b_l[gdx])
+        if milp==False:
+            A = model.addMVar(len(phat_l[gdx].flatten()),lb=0, ub=1, vtype=gp.GRB.CONTINUOUS, name='Alloc' + str(gdx))
+        else:
+            A = model.addMVar(len(phat_l[gdx].flatten()),lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
+        Allocs.append(A)
+
+        eps = 1e-6
+
+        log_p_phat = np.log(phat).flatten()
+        log_one_minus_phat = np.log(1-phat).flatten()
+        rhs_bd = rhs_bd_per_group[gdx]
+
+        mn = int(n_agents*n_items)
+        c_val = np.sum(C)
+
+        e = -1.0 * (c_val * rhs_bd + np.sum(C*log_one_minus_phat))
+        neg_ones = -1*np.ones(mn)
+        c= np.vstack((np.array([e]).reshape(1,1),neg_ones.flatten().reshape(-1,1))).flatten()
+        f =  C*(log_p_phat - log_one_minus_phat).flatten()
+
+        x = model.addMVar(mn+1, lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pval")
+        e_vals.append(e)
+        c_vals.append(c)
+        f_vals.append(f)
+        x_vals.append(x)
+
+        model.addConstrs(A[i] <= C[i] for i in range(mn))
+
+        model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
+                         range(n_items))
+
+        model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
+                         range(n_items))
+
+        model.addConstrs((f[jdx]*x[0] - x[jdx+1] <= A_multiplier*A[jdx]   for jdx in range(mn)),name='ctr'+ str(gdx))
+        model.addConstr(t<= c@x, name='min_w'+ str(gdx))
+
+    load_sum = model.addMVar(loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
+
+    model.addConstrs(load_sum[idx] == gp.quicksum(
+        Allocs[gdx][idx * phat_l[gdx].shape[1]:(idx + 1) * (phat_l[gdx].shape[1])].sum() for gdx in range(ngroups)) for
+                     idx in range(loads.size))
+    total_agents = loads.size
+    model.addConstrs(load_sum[idx] <= loads[idx] for idx in range(total_agents))
+
+    model.setObjective(t, gp.GRB.MAXIMIZE)
+    model.setParam('OutputFlag', 1)
+
+    model.optimize()
+    final_allocs = []
+    for idx in range(ngroups):
+        final_allocs.append(Allocs[idx].X)
+
+    obj = model.getObjective()
+
+    return final_allocs, obj.getValue()
+
+
 class UtilitarianAlternation():
     def __init__(self, mu_list, covs_ub_list, covs_lb_list, loads, Sigma_list, rad_list, n_iter=1000, integer=False):
 
@@ -442,85 +521,6 @@ class UtilitarianAlternation():
         # self.mu_list = allocs
         # self.betas = betas
         return allocs, betas
-
-
-def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, covs_lb_l, covs_ub_l, milp=False):
-    ngroups = len(phat_l)
-    model = gp.Model()
-
-    t = model.addVar(lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY,vtype=gp.GRB.CONTINUOUS, name='t')
-
-    e_vals = []
-    c_vals = []
-    f_vals = []
-    x_vals = []
-    Allocs = []
-
-    for gdx in range(ngroups):
-        n_agents = phat_l[gdx].shape[0]
-        n_items = phat_l[gdx].shape[1]
-        phat = phat_l[gdx].flatten()
-        C = C_l[gdx].flatten()
-        covs_lb = covs_lb_l[gdx].flatten()
-        covs_ub = covs_ub_l[gdx].flatten()
-
-        A_multiplier = (a_l[gdx] - b_l[gdx])
-        if milp==False:
-            A = model.addMVar(len(phat_l[gdx].flatten()),lb=0, ub=1, vtype=gp.GRB.CONTINUOUS, name='Alloc' + str(gdx))
-        else:
-            A = model.addMVar(len(phat_l[gdx].flatten()),lb=0, ub=1, vtype=gp.GRB.INTEGER, name='Alloc' + str(gdx))
-        Allocs.append(A)
-
-        eps = 1e-6
-
-        log_p_phat = np.log(phat).flatten()
-        log_one_minus_phat = np.log(1-phat).flatten()
-        rhs_bd = rhs_bd_per_group[gdx]
-
-        mn = int(n_agents*n_items)
-        c_val = np.sum(C)
-
-        e = -1.0 * (c_val * rhs_bd + np.sum(C*log_one_minus_phat))
-        neg_ones = -1*np.ones(mn)
-        c= np.vstack((np.array([e]).reshape(1,1),neg_ones.flatten().reshape(-1,1))).flatten()
-        f =  C*(log_p_phat - log_one_minus_phat).flatten()
-
-        x = model.addMVar(mn+1, lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="pval")
-        e_vals.append(e)
-        c_vals.append(c)
-        f_vals.append(f)
-        x_vals.append(x)
-
-        model.addConstrs(A[i] <= C[i] for i in range(mn))
-
-        model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
-                         range(n_items))
-
-        model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
-                         range(n_items))
-
-        model.addConstrs((f[jdx]*x[0] - x[jdx+1] <= A_multiplier*A[jdx]   for jdx in range(mn)),name='ctr'+ str(gdx))
-        model.addConstr(t<= c@x, name='min_w'+ str(gdx))
-
-    load_sum = model.addMVar(loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
-
-    model.addConstrs(load_sum[idx] == gp.quicksum(
-        Allocs[gdx][idx * phat_l[gdx].shape[1]:(idx + 1) * (phat_l[gdx].shape[1])].sum() for gdx in range(ngroups)) for
-                     idx in range(loads.size))
-    total_agents = loads.size
-    model.addConstrs(load_sum[idx] <= loads[idx] for idx in range(total_agents))
-
-    model.setObjective(t, gp.GRB.MAXIMIZE)
-    model.setParam('OutputFlag', 1)
-
-    model.optimize()
-    final_allocs = []
-    for idx in range(ngroups):
-        final_allocs.append(Allocs[idx].X)
-
-    obj = model.getObjective()
-
-    return final_allocs, obj.getValue()
 
 
 def check_ellipsoid(Sigma, mu, x, rsquared):
