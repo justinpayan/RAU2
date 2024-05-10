@@ -66,12 +66,12 @@ def main(args):
             central_estimate = (central_estimate + 5) / 6
             a = 1
             b = -5
-        adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a=a, b=b)
+        adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 
         metrics_to_values['adv_usw'][c] = adv_usw
 
         print("Calculating adv gesw", flush=True)
-        adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a=a, b=b)
+        adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
         metrics_to_values['adv_gesw'][c] = adv_gesw
 
     print(metrics_to_values, flush=True)
