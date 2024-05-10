@@ -29,7 +29,7 @@ def compute_cvar_gesw(allocation, value_samples, groups, conf_level):
     return np.mean(sorted(gesws)[:cutoff])
 
 
-def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group, groups):
+def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group, groups, a=1, b=0):
     m = gp.Model()
 
     ngroups = len(set(groups))
@@ -65,23 +65,25 @@ def compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_gr
     m.setObjective(obj)
     m.optimize()
     m.setParam('OutputFlag', 1)
-    return obj.getValue()/allocation.shape[1]
+
+    return ((a-b)*obj.getValue() + b*np.sum(allocation))/allocation.shape[1]
 
 
-def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group, groups):
+def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group, groups, a=1, b=0):
     m = gp.Model()
 
     ngroups = len(set(groups))
 
-    obj_terms = []
-
     gesw = m.addVar()
     aux_vars = m.addVars(ngroups, vtype=gp.GRB.CONTINUOUS)
+
+    grpsizes = []
 
     for gidx in range(ngroups):
         print("setting up group ", gidx)
         gmask = np.where(groups == gidx)[0]
         grpsize = gmask.shape[0]
+        grpsizes.append(grpsize)
 
         a = allocation[:, gmask]
         ce = central_estimate[:, gmask]
@@ -111,4 +113,5 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
     m.setObjective(gesw)
     m.optimize()
     m.setParam('OutputFlag', 1)
-    return gesw.X
+
+    return (a-b)*gesw.X + b

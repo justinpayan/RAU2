@@ -60,17 +60,18 @@ def main(args):
 
         print("Calculating adv usw", flush=True)
         delta = np.round(1 - c, decimals=2)
+        a = 1
+        b = 0
         if dset_name == "cs":
             central_estimate = (central_estimate + 5) / 6
-        adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
-        if dset_name == "cs":
-            adv_usw = 6*adv_usw - 5*np.sum(allocation)
+            a = 1
+            b = -5
+        adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a=a, b=b)
+
         metrics_to_values['adv_usw'][c] = adv_usw
 
         print("Calculating adv gesw", flush=True)
-        adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups)
-        if dset_name == "cs":
-            adv_gesw = 6*adv_gesw - 5*np.sum(allocation)
+        adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a=a, b=b)
         metrics_to_values['adv_gesw'][c] = adv_gesw
 
     print(metrics_to_values, flush=True)
