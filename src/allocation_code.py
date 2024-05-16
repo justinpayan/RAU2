@@ -63,7 +63,7 @@ def solve_gesw(affinity_scores, covs_lb, covs_ub, loads, groups, coi_mask):
 def solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask):
     alloc = cp.Variable((loads.size, covs_lb.size), boolean=True)
     alpha = cp.Variable()
-    beta = conf_level
+    beta = 1-conf_level
     num_samples = len(value_samples)
     # Beta is the cvar level for the RISK. So at .99, that means we are minimizing the conditional expectation
     # of the highest 1% of RISK scores, or rather, maximizing the CE of the lowest 1% of GAIN scores.
@@ -101,7 +101,7 @@ def solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, 
     num_samples = len(value_samples)
     gesw_alloc = cp.Variable(shape_tup, boolean=True)
     alpha = cp.Variable()
-    beta = conf_level
+    beta = 1-conf_level
     y = cp.Variable((num_samples, 1))
 
     # Beta is the cvar level for the RISK. So at .99, that means we are minimizing the conditional expectation
