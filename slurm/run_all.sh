@@ -13,7 +13,7 @@
 #  done
 #done
 
-for DSET_NAME in "aamas1_gauss" "aamas2_gauss" "aamas3_gauss"; do
+for DSET_NAME in "gauss_aamas1" "gauss_aamas2" "gauss_aamas3"; do
   for ALLOC_TYPE in "exp_usw_max" "exp_gesw_max"; do
     ./submit_compute_allocations.sbatch ${DSET_NAME} ${ALLOC_TYPE} 0
     sleep .1

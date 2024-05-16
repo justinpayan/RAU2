@@ -8,12 +8,14 @@ from allocation_code import solve_usw_gurobi, solve_gesw, solve_cvar_usw, solve_
 from scipy.stats import chi2
 
 
-dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ads": "Advertising", "cs": "cs"}
+dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3",
+                 "gauss_aamas1": "AAMAS1", "gauss_aamas2": "AAMAS2", "gauss_aamas3": "AAMAS3",
+                 "ads": "Advertising", "cs": "cs"}
 
 
 def load_dset(dset_name, data_dir):
 
-    if dset_name.startswith("aamas") and not dset_name.endswith("gauss"):
+    if dset_name.startswith("aamas"):
         idx = int(dset_name[-1])
         groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
@@ -28,7 +30,7 @@ def load_dset(dset_name, data_dir):
 
         rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "AAMAS", "delta_to_normal_bd_%d.pkl" % idx), 'rb'))
 
-    elif dset_name.startswith("aamas") and dset_name.endswith("gauss"):
+    elif dset_name.startswith("gauss_aamas"):
         idx = int(dset_name[-1])
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_%d.npy" % idx))
         std_devs = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
