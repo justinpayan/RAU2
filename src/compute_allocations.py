@@ -13,10 +13,8 @@ dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3", "ad
 
 def load_dset(dset_name, data_dir):
 
-    if dset_name.startswith("aamas"):
+    if dset_name.startswith("aamas") and not dset_name.endswith("gauss"):
         idx = int(dset_name[-1])
-        # central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_%d.npy" % idx))
-        # std_devs = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
         groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "prob_up_%d.npy" % idx))
@@ -28,16 +26,30 @@ def load_dset(dset_name, data_dir):
         covs_ub = covs_lb
         loads = ls[idx-1] * np.ones(central_estimate.shape[0])
 
-        # ngroups = len(set(groups))
-
         rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "AAMAS", "delta_to_normal_bd_%d.pkl" % idx), 'rb'))
-        # rhs_bd_per_group = {}
-        # for delta in [.3, .2, .1, .05]:
-        #     rhs_bd_per_group[delta] = []
-        #     for gidx in range(ngroups):
-        #         gmask = np.where(groups == gidx)[0]
-        #         c_value = np.sum(coi_mask[:, gmask])
-        #         rhs_bd_per_group[delta].append(chi2.ppf(1-(delta/ngroups), df=c_value))
+
+    elif dset_name.startswith("aamas") and dset_name.endswith("gauss"):
+        idx = int(dset_name[-1])
+        central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_%d.npy" % idx))
+        std_devs = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
+        groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
+        coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
+
+        cs = [3, 2, 2]
+        ls = [15, 15, 4]
+        covs_lb = cs[idx-1] * np.ones(central_estimate.shape[1])
+        covs_ub = covs_lb
+        loads = ls[idx-1] * np.ones(central_estimate.shape[0])
+
+        ngroups = len(set(groups))
+
+        rhs_bd_per_group = {}
+        for delta in [.3, .2, .1, .05]:
+            rhs_bd_per_group[delta] = []
+            for gidx in range(ngroups):
+                gmask = np.where(groups == gidx)[0]
+                c_value = np.sum(coi_mask[:, gmask])
+                rhs_bd_per_group[delta].append(chi2.ppf(1-(delta/ngroups), df=c_value))
 
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
