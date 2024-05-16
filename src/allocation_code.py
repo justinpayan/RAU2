@@ -130,8 +130,8 @@ def solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, 
 
 def prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups):
     n_groups = len(set(groups))
-    a = 6
-    b = 5
+    a = 1
+    b = 0
 
     ce_l = []
     covs_lb_l = []
@@ -338,7 +338,7 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
         model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
                          range(n_items))
 
-        model.addConstrs((f[jdx]*x[0] - x[jdx+1] <= A_multiplier*A[jdx]   for jdx in range(mn)),name='ctr'+ str(gdx))
+        model.addConstrs((f[jdx]*x[0] - x[jdx+1] <= A_multiplier*A[jdx]/n_agents   for jdx in range(mn)),name='ctr'+ str(gdx))
         model.addConstr(t<= c@x, name='min_w'+ str(gdx))
 
     load_sum = model.addMVar(loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')

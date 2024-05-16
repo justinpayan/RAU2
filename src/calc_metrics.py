@@ -47,9 +47,9 @@ def main(args):
     metrics_to_values['adv_usw'] = {}
     metrics_to_values['adv_gesw'] = {}
 
-    conf_levels = [.7, .8, .9, .95]
+    conf_levels = [0.05, 0.1, 0.2, 0.3]
 
-    value_samples = get_samples(central_estimate, std_devs, dset_name)
+    value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=1000)
 
     for c in conf_levels:
         print("Calculating cvar usw", flush=True)
@@ -59,13 +59,10 @@ def main(args):
         metrics_to_values['cvar_gesw'][c] = compute_cvar_gesw(allocation, value_samples, groups, c)
 
         print("Calculating adv usw", flush=True)
-        delta = np.round(1 - c, decimals=2)
+        delta = c
         a = 1
         b = 0
-        if dset_name == "cs":
-            central_estimate = (central_estimate + 5) / 6
-            a = 1
-            b = -5
+
         adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 
         metrics_to_values['adv_usw'][c] = adv_usw

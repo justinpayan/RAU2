@@ -60,7 +60,7 @@ def load_dset(dset_name, data_dir):
 
     elif dset_name == "cs":
         rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "delta_to_normal_bd.pkl"), 'rb'))
-        central_estimate = np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))
+        central_estimate = (np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))+5)/6
         coi_mask = np.load(os.path.join(data_dir, "cs", "coi_mask.npy"))
 
         covs_lb = 2 * np.ones(central_estimate.shape[1])
@@ -75,13 +75,9 @@ def load_dset(dset_name, data_dir):
 
 # If doing on cs or aamas, assume the central_estimate are the parameters of a multivariate Bernoulli
 # else, assume Gaussian.
-def get_samples(central_estimate, std_devs, dset_name, num_samples=10):
+def get_samples(central_estimate, std_devs, dset_name, num_samples=100):
     rng = np.random.default_rng(seed=0)
-    if dset_name == "cs":
-        p = (central_estimate + 5)/6
-        samples = [rng.uniform(size=p.shape) < p for _ in range(num_samples)]
-        return [6 * vs - 5 for vs in samples]
-    elif dset_name.startswith("aamas"):
+    if dset_name.startswith("aamas") or dset_name == 'cs':
         samples = [rng.uniform(size=central_estimate.shape) < central_estimate for _ in range(num_samples)]
         return samples
     else:
@@ -117,14 +113,10 @@ def main(args):
         alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
     if alloc_type == "adv_usw":
-        delta = np.round(1-conf_level, decimals=2)
-        if dset_name == "cs":
-            central_estimate = (central_estimate + 5) / 6
+        delta = conf_level
         alloc = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
     elif alloc_type == "adv_gesw":
-        delta = np.round(1-conf_level, decimals=2)
-        if dset_name == "cs":
-            central_estimate = (central_estimate + 5) / 6
+        delta = conf_level
         alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
 
     print("Saving allocation", flush=True)
