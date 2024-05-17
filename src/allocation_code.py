@@ -362,11 +362,12 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
     return final_allocs, obj.getValue()
 
 class UtilitarianAlternation():
-    def __init__(self, mu_list,  covs_lb_list,covs_ub_list, loads, Sigma_list, rad_list, n_iter=1000, integer=False):
+    def __init__(self, mu_list,  covs_lb_list, covs_ub_list, loads, Sigma_list, rad_list, n_iter=1000, integer=False):
 
         self.mu_list = mu_list
         self.Sigma_list = Sigma_list
         self.rad_list = rad_list
+        print("self.rad_list: ", self.rad_list)
         self.covs_ub_list = covs_ub_list
         self.covs_lb_list = covs_lb_list
         self.loads = loads
