@@ -189,8 +189,7 @@ def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_p
         step_size = 1e-3
         # def __init__(self, mu_list, covs_lb_list, cov_ub_list, loads, Sigma_list, rad_list, eta, step_size, penalty_wt,
         # egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads, [s**2 for s in sd_l], rhs_bd_per_group, .1, step_size, .1)
-        egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, 1e-3, step_size, 1e-5)
-
+        egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, 1e-3, step_size, 1e-5, coi_mask_l)
         egalObject.gradient_descent()
 
     # Stitch together group_allocs into a single allocation and return it
@@ -689,7 +688,7 @@ def utilitarian_ellipsoid_uncertainty(mu_list, covs_lb_list, covs_ub_list, loads
 
 
 class ComputeGroupEgalitarianQuadratic():
-    def __init__(self, mu_list, covs_lb_list, cov_ub_list, loads, Sigma_list, rad_list, eta, step_size, penalty_wt, n_iter=1000):
+    def __init__(self, mu_list, covs_lb_list, cov_ub_list, loads, Sigma_list, rad_list, eta, step_size, penalty_wt, coi_mask_l, n_iter=1000):
 
         self.mu_list = mu_list
         self.Sigma_list = Sigma_list
@@ -700,6 +699,7 @@ class ComputeGroupEgalitarianQuadratic():
         self.step_size = step_size
         self.n_iter = n_iter
         self.penalty_wt = penalty_wt
+        self.coi_mask_l = coi_mask_l
 
 
         self.ngroups = len(self.mu_list)
@@ -973,6 +973,8 @@ class ComputeGroupEgalitarianQuadratic():
             model.addConstrs(
                 gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
                 range(n_items))
+
+            model.addConstr(A_g <= self.coi_mask_l[i].flatten())
 
             beta_abss.append(beta_abs)
             A_abss.append(A_abs)
