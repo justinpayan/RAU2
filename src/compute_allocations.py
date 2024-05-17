@@ -106,6 +106,8 @@ def main(args):
     dset_name = args.dset_name
     alloc_type = args.alloc_type
     conf_level = args.conf_level
+    adv_usw_method = args.adv_usw_method
+    mode = args.mode
 
     base_dir = "/mnt/nfs/scratch1/jpayan/RAU2"
     data_dir = os.path.join(base_dir, "data")
@@ -132,17 +134,25 @@ def main(args):
 
     if alloc_type == "adv_usw":
         delta = conf_level
-        alloc = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
+        alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_usw_method)
+        if mode == "time" and timestamps is not None:
+            print("Saving out timestamps and objective values for iterations")
+            timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
+            pickle.dump(timestamps, open(timestamp_fname, 'wb'))
+            obj_vals_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_obj_vals.pkl" % (alloc_type, conf_level))
+            pickle.dump(obj_vals, open(obj_vals_fname, 'wb'))
+
     elif alloc_type == "adv_gesw":
         delta = conf_level
         alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
 
-    print("Saving allocation", flush=True)
+    if mode == "save_alloc":
+        print("Saving allocation", flush=True)
 
-    if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-        np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
-    else:
-        np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
+        if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
+            np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
+        else:
+            np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
 
 
 
@@ -151,6 +161,9 @@ if __name__ == "__main__":
     parser.add_argument("--dset_name", type=str, default="aamas1")
     parser.add_argument("--alloc_type", type=str, default="exp_usw_max")
     parser.add_argument("--conf_level", type=float, default=0.9)
+    parser.add_argument("--adv_usw_method", type=str, default="IQP")
+    parser.add_argument("--mode", type=str, default='save_alloc')
+
 
     args = parser.parse_args()
     main(args)

@@ -7,6 +7,7 @@ import gurobipy as gp
 from gurobipy import Model, multidict, GRB
 
 import random
+import time
 random.seed(10)
 np.random.seed(10)
 torch.manual_seed(0)
@@ -157,17 +158,19 @@ def prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups):
     return a_l, b_l, ce_l, sd_l, covs_lb_l, covs_ub_l, coi_mask_l
 
 
-def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups):
+def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups, method="IQP"):
     a_l, b_l, ce_l, sd_l, covs_lb_l, covs_ub_l, coi_mask_l = \
         prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups)
+
+    timestamps, obj_vals = None, None
 
     if std_devs is None:
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
-    else:
+    elif method == "IQP":
         obj = UtilitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, coi_mask_l)
-        _, group_allocs, _ = obj.iterative_optimization()
+        _, group_allocs, _, timestamps, obj_vals = obj.iterative_optimization()
         # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
         #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
 
@@ -176,7 +179,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
     for gidx in range(len(set(groups))):
         gmask = np.where(groups == gidx)[0]
         final_alloc[:, gmask] = group_allocs[gidx].reshape(final_alloc[:, gmask].shape)
-    return final_alloc
+    return final_alloc, timestamps, obj_vals
 
 def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups):
     a_l, b_l, ce_l, sd_l, covs_lb_l, covs_ub_l, coi_mask_l = \
@@ -375,6 +378,9 @@ class UtilitarianAlternation():
         self.n_iter = n_iter
         self.integer = integer
 
+        # For logging
+        self.iter_timestamps = []
+        self.iter_obj_vals = []
 
         self.ngroups = len(self.mu_list)
         self.nA_list = []
@@ -425,28 +431,27 @@ class UtilitarianAlternation():
         allocs=None
         betas=None
         self.group_welfare= group_welfare
+
+        start_time = time.time()
+
         for iter in range(niters):
             allocs, betas = self.optimize_a_beta()
-
-            # REMOVE THIS BLOCK
-            for gidx in range(self.ngroups):
-                np.save("/mnt/nfs/scratch1/jpayan/tmp/alloc_%d.npy" % gidx, allocs[gidx])
-            # DONE REMOVE THIS BLOCK
 
             lamda = self.optimize_lambda(allocs, betas)
             self.lamda = np.array(lamda)
 
-            def check_ellipsoid(Sigma, mu, x, rsquared):
-                temp = (x - mu).reshape(-1, 1)
-                temp1 = np.sum((temp.flatten()**2 * Sigma))
-                if temp1 <= rsquared:
-                    return True
-                else:
-                    return False
+            # def check_ellipsoid(Sigma, mu, x, rsquared):
+            #     temp = (x - mu).reshape(-1, 1)
+            #     temp1 = np.sum((temp.flatten()**2 * Sigma))
+            #     if temp1 <= rsquared:
+            #         return True
+            #     else:
+            #         return False
 
-            for gidx in range(self.ngroups):
-                x = self.mu_list[gidx].flatten() - (.5*(1/self.lamda[gidx]))*(allocs[gidx].flatten()-betas[gidx].flatten())*self.Sigma_list[gidx].flatten()
-                print(check_ellipsoid(self.Sigma_list[gidx].flatten(), self.mu_list[gidx].flatten(), x, self.rad_list[gidx]**2))
+            # for gidx in range(self.ngroups):
+            #     x = self.mu_list[gidx].flatten() - (.5*(1/self.lamda[gidx]))*(allocs[gidx].flatten()-betas[gidx].flatten())*self.Sigma_list[gidx].flatten()
+            #     print(check_ellipsoid(self.Sigma_list[gidx].flatten(), self.mu_list[gidx].flatten(), x, self.rad_list[gidx]**2))
+
 
             new_welfare = self.compute_welfare(allocs,betas,lamda)
             if prev_welfare is None:
@@ -457,8 +462,10 @@ class UtilitarianAlternation():
             if iter!=0 and np.abs(prev_welfare-welfare)<eps:
                 print("got welfare", welfare)
                 break
+            self.iter_timestamps.append(time.time() - start_time)
+            self.iter_obj_vals.append(welfare)
             print(f"Iter: {iter} Utilitarian welfare: {welfare}")
-        return welfare, allocs, betas
+        return welfare, allocs, betas, self.iter_timestamps, self.iter_obj_vals
 
 
     def optimize_a_beta(self):
