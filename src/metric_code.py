@@ -143,7 +143,7 @@ def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_p
     m.setObjective(obj)
     m.optimize()
     m.setParam('OutputFlag', 1)
-    m.setParam('BarHomogenous', 1)
+    m.setParam('BarHomogeneous', 1)
 
     return obj.getValue()/allocation.shape[1]
 
