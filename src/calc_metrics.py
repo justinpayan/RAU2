@@ -4,7 +4,7 @@ import os
 import pickle
 
 from metric_code import compute_usw, compute_gesw, compute_cvar_usw, compute_cvar_gesw, compute_adv_usw_linear, compute_adv_gesw_linear
-from compute_allocations import get_samples, load_dset, dset_name_map
+from compute_allocations import get_samples, load_dset, dset_name_map, dset_outname_map
 
 
 def main(args):
@@ -21,9 +21,9 @@ def main(args):
     print("Loaded dataset %s, loading %s allocation. Conf level %.2f" % (dset_name, alloc_type, conf_level), flush=True)
 
     if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-        alloc_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level))
+        alloc_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level))
     else:
-        alloc_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_alloc.npy" % alloc_type)
+        alloc_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_alloc.npy" % alloc_type)
 
     allocation = np.load(alloc_fname)
 
@@ -74,9 +74,9 @@ def main(args):
     print(metrics_to_values, flush=True)
 
     if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-        metric_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_metrics.pkl" % (alloc_type, conf_level))
+        metric_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_metrics.pkl" % (alloc_type, conf_level))
     else:
-        metric_fname = os.path.join(output_dir, dset_name_map[dset_name], "%s_metrics.pkl" % alloc_type)
+        metric_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_metrics.pkl" % alloc_type)
 
     pickle.dump(metrics_to_values, open(metric_fname, 'wb'))
 
