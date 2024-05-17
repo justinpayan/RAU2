@@ -529,11 +529,19 @@ class UtilitarianAlternation():
         allocs = []
         betas = []
         for g in range(ngroups):
+            print("Group %d parameters: " % g)
             alloc_v = alloc_list[g].X
 
             beta_v = beta_list[g].X
             allocs.append(np.array(list(alloc_v)).reshape(self.mu_list[g].shape))
             betas.append(np.array(list(beta_v)).reshape(self.mu_list[g].shape))
+            print("sum Beta_v: ", np.sum(beta_v))
+            print("sum zeta_v: ", np.sum(zeta_list[g].X))
+            print("small Beta_v: ", beta_v[:20, :20])
+            print("small zeta_v: ", zeta_list[g].X[:20, :20])
+            print("Beta_v: ", beta_v)
+            print("zeta_v: ", zeta_list[g].X)
+
 
         model.dispose()
 
