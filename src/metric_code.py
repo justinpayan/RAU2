@@ -134,7 +134,7 @@ def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_p
 
         v = m.addMVar(ce.shape)
 
-        m.addConstr(((v - ce)*sd*(v-ce)).sum() <= rhs_bd**2)
+        m.addConstr(((v - ce)*sd*(v-ce)).sum() <= rhs_bd)
 
         m.addConstr(v >= 0)
         obj_terms.append((a * v).sum())
@@ -169,7 +169,7 @@ def compute_adv_gesw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_
 
         v = m.addMVar(ce.shape)
 
-        m.addConstr(((v - ce)*sd*(v-ce)).sum() <= rhs_bd**2)
+        m.addConstr(((v - ce)*sd*(v-ce)).sum() <= rhs_bd)
         m.addConstr(v >= 0)
         m.addConstr(aux_vars[gidx] == (a * v).sum()/grpsize)
 
