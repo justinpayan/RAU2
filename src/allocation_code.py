@@ -538,8 +538,8 @@ class UtilitarianAlternation():
             betas.append(np.array(list(beta_v)).reshape(self.mu_list[g].shape))
             print("sum Beta_v: ", np.sum(beta_v))
             print("sum zeta_v: ", np.sum(zeta_list[g].X))
-            print("small Beta_v: ", beta_v[:20, :20])
-            print("small zeta_v: ", zeta_list[g].X[:20, :20])
+            print("small Beta_v: ", beta_v[:100])
+            print("small zeta_v: ", zeta_list[g].X[:100])
             print("Beta_v: ", beta_v)
             print("zeta_v: ", zeta_list[g].X)
 
