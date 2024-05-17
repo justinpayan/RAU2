@@ -1262,3 +1262,50 @@ class ComputeGroupEgalitarianQuadratic():
 #             beta_grads.append(self.beta_tns[gdx].grad)
 #             lamda_grads = self.lamda_tns.grad
 #         return A_grads, beta_grads, lamda_grads
+def run():
+    n = np.random.randint(10, 100)
+
+    n_reviewers = 10
+    n_papers = 10
+    n = n_reviewers * n_papers
+    c = np.random.uniform(0.1, 1, n)
+    k = np.random.uniform(0.1, 1, n)
+    ksquared = k * k
+    sigma = np.eye(n) * ksquared
+    mu = np.random.uniform(0.1, 1, n)
+    p = np.random.rand()
+    df = np.random.randint(1, 10)
+    from scipy.stats import chi2
+    rsquared = chi2.ppf(p, df=df)
+    loads = np.ones(n_reviewers) * n_papers
+    covs = np.random.randint(1, n_reviewers, n_papers)
+
+    std_devs = np.sqrt(np.diag(sigma))
+    mu = mu.reshape((n_reviewers, n_papers))
+    ngroups = 3
+    k = int(n_reviewers / ngroups)
+    step_size = 1e-1
+    mu_list = [mu[:,0:k], mu[:,k:2 * k], mu[:,2 * k:]]
+    covs_list = [np.random.randint(1, n_reviewers, mu_list[0].shape[1]),
+                 np.random.randint(1, n_reviewers, mu_list[1].shape[1]),
+                 np.random.randint(1, n_reviewers, mu_list[2].shape[1])]
+    loads_list = loads
+
+    rad_list = [rsquared for x in range(ngroups)]
+
+    Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
+
+
+    # egalObject =    ComputeGroupEgalitarianQuadratic(mu_list, covs_list, loads_list, Sigma_list, rad_list, eta, step_size, n_iter=1000)
+    # egalObject.gradient_descent()
+
+    # egalObject = ComputeGroupUtilitarianQuadratic(mu_list, covs_list, loads_list, Sigma_list, rad_list, eta, step_size,
+    #                                               n_iter=1000)
+    # egalObject.gradient_descent()
+
+    Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, integer=False)
+    Util.iterative_optimization(group_welfare=False)
+
+
+if __name__=='__main__':
+    run()
