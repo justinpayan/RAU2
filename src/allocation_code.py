@@ -165,7 +165,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
-        obj = UtilitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group)
+        obj = UtilitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, coi_mask_l)
         group_allocs, _ = obj.iterative_optimization()
         # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
         #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
@@ -362,7 +362,7 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
     return final_allocs, obj.getValue()
 
 class UtilitarianAlternation():
-    def __init__(self, mu_list,  covs_lb_list, covs_ub_list, loads, Sigma_list, rad_list, n_iter=1000, integer=False):
+    def __init__(self, mu_list,  covs_lb_list, covs_ub_list, loads, Sigma_list, rad_list, coi_mask_list, n_iter=1000, integer=False):
 
         self.mu_list = mu_list
         self.Sigma_list = Sigma_list
@@ -371,6 +371,7 @@ class UtilitarianAlternation():
         self.covs_ub_list = covs_ub_list
         self.covs_lb_list = covs_lb_list
         self.loads = loads
+        self.coi_mask_list = coi_mask_list
         self.n_iter = n_iter
         self.integer = integer
 
@@ -517,6 +518,8 @@ class UtilitarianAlternation():
 
             else:
                 model.addConstr(zeta_g == ( alloc_g - beta_g))
+
+            model.addConstr(alloc_g <= self.coi_mask_list[gdx])
 
 
             # model.addConstr(temp_g == (zeta_g) * (1.0/(4*self.lamda[gdx])))
