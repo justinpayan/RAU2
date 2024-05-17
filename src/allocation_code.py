@@ -434,6 +434,21 @@ class UtilitarianAlternation():
 
             lamda = self.optimize_lambda(allocs, betas)
             self.lamda = np.array(lamda)
+
+            def check_ellipsoid(Sigma, mu, x, rsquared):
+                temp = (x - mu).reshape(-1, 1)
+                temp1 = np.matmul(temp.transpose(), Sigma)
+                temp2 = np.matmul(temp1.reshape(1, -1), temp)
+
+                if temp2.flatten()[0] <= rsquared:
+                    return True
+                else:
+                    return False
+
+            for gidx in range(self.ngroups):
+                x = self.mu_list[gidx] - (.5*(1/self.lamda[gidx]))*(allocs[gidx]-betas[gidx])*self.Sigma_list[gidx]
+                print(check_ellipsoid(self.Sigma_list[gidx], self.mu_list[gidx], x, self.rad_list[gidx]**2))
+
             new_welfare = self.compute_welfare(allocs,betas,lamda)
             if prev_welfare is None:
                 prev_welfare = new_welfare
@@ -542,7 +557,6 @@ class UtilitarianAlternation():
             print("small zeta_v: ", zeta_list[g].X[:100])
             print("Beta_v: ", beta_v)
             print("zeta_v: ", zeta_list[g].X)
-
 
         model.dispose()
 
