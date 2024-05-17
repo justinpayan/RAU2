@@ -518,7 +518,7 @@ class UtilitarianAlternation():
             else:
                 model.addConstr(zeta_g == ( alloc_g - beta_g))
 
-            model.addConstr(alloc_g <= self.coi_mask_list[gdx])
+            model.addConstr(alloc_g <= self.coi_mask_list[gdx].flatten())
 
 
             # model.addConstr(temp_g == (zeta_g) * (1.0/(4*self.lamda[gdx])))
