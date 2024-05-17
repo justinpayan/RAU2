@@ -51,7 +51,7 @@ def load_dset(dset_name, data_dir):
             for gidx in range(ngroups):
                 gmask = np.where(groups == gidx)[0]
                 c_value = np.sum(coi_mask[:, gmask])
-                rhs_bd_per_group[delta].append(chi2.ppf(1-(delta/ngroups), df=c_value))
+                rhs_bd_per_group[delta].append(np.sqrt(chi2.ppf(1-(delta/ngroups), df=c_value)))
 
     elif dset_name == "ads":
         central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
