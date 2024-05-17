@@ -115,3 +115,68 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
     m.setParam('OutputFlag', 1)
 
     return (a_val-b_val)*gesw.X + b_val
+
+def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group, groups):
+    m = gp.Model()
+
+    ngroups = len(set(groups))
+
+    obj_terms = []
+
+    for gidx in range(ngroups):
+        print("setting up group ", gidx)
+        gmask = np.where(groups == gidx)[0]
+
+        a = allocation[:, gmask]
+        ce = central_estimate[:, gmask]
+        sd = std_devs[:, gmask]
+        rhs_bd = rhs_bd_per_group[gidx]
+
+        v = m.addMVar(ce.shape)
+
+        m.addConstr(((v - ce)**2)*sd <= rhs_bd**2)
+
+        m.addConstr(v >= 0)
+        obj_terms.append((a * v).sum())
+    obj = gp.quicksum(t for t in obj_terms)
+    m.setObjective(obj)
+    m.optimize()
+    m.setParam('OutputFlag', 1)
+
+    return obj.getValue()/allocation.shape[1]
+
+
+def compute_adv_gesw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group, groups):
+    m = gp.Model()
+
+    ngroups = len(set(groups))
+
+    gesw = m.addVar()
+    aux_vars = m.addVars(ngroups, vtype=gp.GRB.CONTINUOUS)
+
+    grpsizes = []
+
+    for gidx in range(ngroups):
+        print("setting up group ", gidx)
+        gmask = np.where(groups == gidx)[0]
+        grpsize = gmask.shape[0]
+        grpsizes.append(grpsize)
+
+        a = allocation[:, gmask]
+        ce = central_estimate[:, gmask]
+        sd = std_devs[:, gmask]
+        rhs_bd = rhs_bd_per_group[gidx]
+
+        v = m.addMVar(ce.shape)
+
+        m.addConstr(((v - ce)**2)*sd <= rhs_bd**2)
+        m.addConstr(v >= 0)
+        m.addConstr(aux_vars[gidx] == (a * v).sum()/grpsize)
+
+    m.addConstr(gesw == gp.min_(aux_vars))
+
+    m.setObjective(gesw)
+    m.optimize()
+    m.setParam('OutputFlag', 1)
+
+    return gesw.X

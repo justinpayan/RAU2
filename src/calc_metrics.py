@@ -3,7 +3,8 @@ import numpy as np
 import os
 import pickle
 
-from metric_code import compute_usw, compute_gesw, compute_cvar_usw, compute_cvar_gesw, compute_adv_usw_linear, compute_adv_gesw_linear
+from metric_code import compute_usw, compute_gesw, compute_cvar_usw, compute_cvar_gesw, \
+    compute_adv_usw_linear, compute_adv_gesw_linear, compute_adv_usw_ellipsoidal, compute_adv_gesw_ellipsoidal
 from compute_allocations import get_samples, load_dset, dset_name_map, dset_outname_map
 
 
@@ -58,17 +59,23 @@ def main(args):
         print("Calculating cvar gesw", flush=True)
         metrics_to_values['cvar_gesw'][c] = compute_cvar_gesw(allocation, value_samples, groups, c)
 
-        print("Calculating adv usw", flush=True)
         delta = c
         a = 1
         b = 0
 
-        adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
-
-        metrics_to_values['adv_usw'][c] = adv_usw
+        print("Calculating adv usw", flush=True)
+        if dset_name.startswith("gauss"):
+            adv_usw = compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group, groups)
+        else:
+            adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 
         print("Calculating adv gesw", flush=True)
-        adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
+        if dset_name.startswith("gauss"):
+            adv_gesw = compute_adv_gesw_ellipsoidal(allocation, central_estimate, rhs_bd_per_group[delta], groups)
+        else:
+            adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
+
+        metrics_to_values['adv_usw'][c] = adv_usw
         metrics_to_values['adv_gesw'][c] = adv_gesw
 
     print(metrics_to_values, flush=True)
