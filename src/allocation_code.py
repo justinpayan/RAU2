@@ -437,10 +437,8 @@ class UtilitarianAlternation():
 
             def check_ellipsoid(Sigma, mu, x, rsquared):
                 temp = (x - mu).reshape(-1, 1)
-                temp1 = np.matmul(temp.transpose(), Sigma)
-                temp2 = np.matmul(temp1.reshape(1, -1), temp)
-
-                if temp2.flatten()[0] <= rsquared:
+                temp1 = np.sum((temp.flatten()**2 * Sigma))
+                if temp1 <= rsquared:
                     return True
                 else:
                     return False
