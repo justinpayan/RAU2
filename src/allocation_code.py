@@ -428,7 +428,7 @@ class UtilitarianAlternation():
 
             # REMOVE THIS BLOCK
             for gidx in range(self.ngroups):
-                np.save("/work/pi_yzick_umass_edu/jpayan/tmp/alloc_%d.npy" % gidx, allocs[gidx])
+                np.save("/mnt/nfs/scratch1/jpayan/tmp/alloc_%d.npy" % gidx, allocs[gidx])
             # DONE REMOVE THIS BLOCK
 
             lamda = self.optimize_lambda(allocs, betas)
