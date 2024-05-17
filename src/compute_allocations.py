@@ -12,6 +12,10 @@ dset_name_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3",
                  "gauss_aamas1": "AAMAS1", "gauss_aamas2": "AAMAS2", "gauss_aamas3": "AAMAS3",
                  "ads": "Advertising", "cs": "cs"}
 
+dset_outname_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3",
+                 "gauss_aamas1": "gAAMAS1", "gauss_aamas2": "gAAMAS2", "gauss_aamas3": "gAAMAS3",
+                 "ads": "Advertising", "cs": "cs"}
+
 
 def load_dset(dset_name, data_dir):
 
@@ -136,9 +140,9 @@ def main(args):
     print("Saving allocation", flush=True)
 
     if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-        np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
+        np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
     else:
-        np.save(os.path.join(output_dir, dset_name_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
+        np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
 
 
 
