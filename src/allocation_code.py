@@ -446,7 +446,7 @@ class UtilitarianAlternation():
                     return False
 
             for gidx in range(self.ngroups):
-                x = self.mu_list[gidx] - (.5*(1/self.lamda[gidx]))*(allocs[gidx].flatten()-betas[gidx].flatten())*self.Sigma_list[gidx].flatten()
+                x = self.mu_list[gidx].flatten() - (.5*(1/self.lamda[gidx]))*(allocs[gidx].flatten()-betas[gidx].flatten())*self.Sigma_list[gidx].flatten()
                 print(check_ellipsoid(self.Sigma_list[gidx].flatten(), self.mu_list[gidx].flatten(), x, self.rad_list[gidx]**2))
 
             new_welfare = self.compute_welfare(allocs,betas,lamda)
