@@ -117,6 +117,7 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
     return (a_val-b_val)*gesw.X + b_val
 
 def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group, groups):
+    print(rhs_bd_per_group)
     m = gp.Model()
 
     ngroups = len(set(groups))
@@ -142,6 +143,7 @@ def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_p
     m.setObjective(obj)
     m.optimize()
     m.setParam('OutputFlag', 1)
+    m.setParam('BarHomogenous', 1)
 
     return obj.getValue()/allocation.shape[1]
 
