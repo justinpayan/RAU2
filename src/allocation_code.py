@@ -82,7 +82,7 @@ def solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
 
     cvar_usw_problem = cp.Problem(cp.Minimize(obj), constr)
 
-    cvar_usw_problem.solve(verbose=True, solver='GUROBI', mipgap=0.2)
+    cvar_usw_problem.solve(verbose=True, solver='GUROBI', mipgap=0.05)
 
     return alloc.value
 
@@ -125,7 +125,7 @@ def solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, 
     cvar_gesw_problem = cp.Problem(cp.Minimize(obj), constr)
     # model.setParam('MIPGap', 0.05)
 
-    cvar_gesw_problem.solve(verbose=True, solver='GUROBI', mipgap=0.2)
+    cvar_gesw_problem.solve(verbose=True, solver='GUROBI', mipgap=0.05)
 
     return gesw_alloc.value
 
@@ -167,7 +167,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
         obj = UtilitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, coi_mask_l)
-        group_allocs, _ = obj.iterative_optimization()
+        group_allocs, _, _ = obj.iterative_optimization()
         # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
         #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
 
@@ -191,7 +191,7 @@ def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_p
         # def __init__(self, mu_list, covs_lb_list, cov_ub_list, loads, Sigma_list, rad_list, eta, step_size, penalty_wt,
         # egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads, [s**2 for s in sd_l], rhs_bd_per_group, .1, step_size, .1)
         egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, 1e-3, step_size, 1e-5, coi_mask_l)
-        egalObject.gradient_descent()
+        group_allocs, _, _ = egalObject.gradient_descent()
 
     # Stitch together group_allocs into a single allocation and return it
     final_alloc = np.zeros_like(central_estimate)
