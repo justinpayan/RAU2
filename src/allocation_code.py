@@ -853,7 +853,7 @@ class ComputeGroupEgalitarianQuadratic():
         sum_w = np.sum(welfares)
         print(f'Worst welfare: {worst_w} Welfare sum: {sum_w}')
 
-        return self.A_tl, self.beta_tns, self.Lamda_tns
+        return [alloc_tens.detach().numpy() for alloc_tens in self.A_tl], self.beta_tns, self.Lamda_tns
 
 
 
