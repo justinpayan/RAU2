@@ -82,7 +82,7 @@ def solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
 
     cvar_usw_problem = cp.Problem(cp.Minimize(obj), constr)
 
-    cvar_usw_problem.solve(verbose=True, solver='GUROBI', reoptimize=True)
+    cvar_usw_problem.solve(verbose=True, solver='GUROBI', mipgap=0.2)
 
     return alloc.value
 
@@ -123,8 +123,9 @@ def solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, 
               y >= -1 * inner_prods_per_group - alpha]
 
     cvar_gesw_problem = cp.Problem(cp.Minimize(obj), constr)
+    # model.setParam('MIPGap', 0.05)
 
-    cvar_gesw_problem.solve(verbose=True, solver='GUROBI')
+    cvar_gesw_problem.solve(verbose=True, solver='GUROBI', mipgap=0.2)
 
     return gesw_alloc.value
 
