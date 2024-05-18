@@ -13,7 +13,7 @@
 #  done
 #done
 
-for DSET_NAME in "aamas1" "aamas2" "aamas3"; do
+for DSET_NAME in "cs" "aamas1" "aamas2" "aamas3"; do
   for ALLOC_TYPE in "exp_usw_max" "exp_gesw_max"; do
     ./submit_calc_metrics.sbatch ${DSET_NAME} ${ALLOC_TYPE} 0
     sleep .1
