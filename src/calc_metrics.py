@@ -50,7 +50,7 @@ def main(args):
     metrics_to_values['adv_usw'] = {}
     metrics_to_values['adv_gesw'] = {}
 
-    conf_levels = [0.05, 0.1, 0.2, 0.3]
+    conf_levels = [0.01, 0.05, 0.1, 0.2, 0.3]
 
     value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=1000, noise_multiplier=noise_multiplier)
 
