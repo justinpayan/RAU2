@@ -175,8 +175,13 @@ def solve_cvar_gesw_gauss(mu_matrix, sigma_matrix, covs_lb, covs_ub, loads, conf
         mu = mu_matrix[:, gmask]
         grpsize = gmask.size
 
-        m.addConstr()
-
+        lhs = 1/grpsize
+        lhs *= (a * mu).sum()
+        lhs -= t
+        lhs = lhs*lhs
+        rhs = (a*sd*a).sum()
+        rhs *= (norm.pdf(norm.ppf(conf_level))/(grpsize*(1-conf_level)))**2
+        m.addConstr(lhs >= rhs)
 
     m.setObjective(obj, GRB.MAXIMIZE)
 

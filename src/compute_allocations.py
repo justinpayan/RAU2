@@ -144,16 +144,16 @@ def main(args):
         print(value_samples[10][10, 10])
 
     if alloc_type == "cvar_usw" or alloc_type == "cvar_gesw":
-        # if dset_name.startswith("gauss"):
-        #     if alloc_type == "cvar_usw":
-        #         alloc = solve_cvar_usw_gauss(covs_lb, covs_ub, loads, conf_level, coi_mask)
-        #     elif alloc_type == "cvar_gesw":
-        #         alloc = solve_cvar_gesw_gauss(covs_lb, covs_ub, loads, conf_level, groups, coi_mask)
-        # else:
-        if alloc_type == "cvar_usw":
-            alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
-        elif alloc_type == "cvar_gesw":
-            alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
+        if dset_name.startswith("gauss"):
+            if alloc_type == "cvar_usw":
+                alloc = solve_cvar_usw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, coi_mask)
+            elif alloc_type == "cvar_gesw":
+                alloc = solve_cvar_gesw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, groups, coi_mask)
+        else:
+            if alloc_type == "cvar_usw":
+                alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
+            elif alloc_type == "cvar_gesw":
+                alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
     if alloc_type == "adv_usw":
         delta = conf_level
