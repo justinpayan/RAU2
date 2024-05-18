@@ -341,8 +341,8 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
         model.addConstrs(gp.quicksum(A[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
                          range(n_items))
 
-        model.addConstrs((f[jdx]*x[0] - x[jdx+1] <= A_multiplier*A[jdx]/n_agents   for jdx in range(mn)),name='ctr'+ str(gdx))
-        model.addConstr(t<= c@x/n_items, name='min_w'+ str(gdx))
+        model.addConstrs((f[jdx]*x[0] - x[jdx+1] <= A_multiplier*A[jdx]/n_items   for jdx in range(mn)),name='ctr'+ str(gdx))
+        model.addConstr(t<= c@x, name='min_w'+ str(gdx))
 
     load_sum = model.addMVar(loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
 
