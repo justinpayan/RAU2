@@ -28,8 +28,9 @@ def main(args):
     if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
         fname_base += ("_%.2f" % conf_level)
 
-    if save_with_noise_multiplier:
-        fname_base += ("_%.2f" % noise_multiplier)
+        # The allocations based on the expected values dont have any variation across noise multipliers, so we didn't save those fresh.
+        if save_with_noise_multiplier:
+            fname_base += ("_%.2f" % noise_multiplier)
 
     alloc_fname = fname_base + "_alloc.npy"
 
