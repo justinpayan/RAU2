@@ -156,7 +156,7 @@ def main(args):
         if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
             fname_base += ("_%.2f" % conf_level)
 
-        if args.save_with_noise_multiplier:
+        if save_with_noise_multiplier:
             fname_base += ("_%.2f" % noise_multiplier)
 
         np.save(fname_base + "_alloc.npy", alloc)

@@ -12,6 +12,8 @@ def main(args):
     dset_name = args.dset_name
     alloc_type = args.alloc_type
     conf_level = args.conf_level
+    noise_multiplier = args.noise_multiplier
+    save_with_noise_multiplier = args.save_with_noise_multiplier
 
     base_dir = "/mnt/nfs/scratch1/jpayan/RAU2"
     data_dir = os.path.join(base_dir, "data")
@@ -50,7 +52,7 @@ def main(args):
 
     conf_levels = [0.05, 0.1, 0.2, 0.3]
 
-    value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=1000)
+    value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=1000, noise_multiplier=noise_multiplier)
 
     for c in conf_levels:
         print("Calculating cvar usw", flush=True)
@@ -80,11 +82,15 @@ def main(args):
 
     print(metrics_to_values, flush=True)
 
-    if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-        metric_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_metrics.pkl" % (alloc_type, conf_level))
-    else:
-        metric_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_metrics.pkl" % alloc_type)
+    fname_base = os.path.join(output_dir, dset_outname_map[dset_name], "%s" % alloc_type)
 
+    if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
+        fname_base += ("_%.2f" % conf_level)
+
+    if save_with_noise_multiplier:
+        fname_base += ("_%.2f" % noise_multiplier)
+
+    metric_fname = fname_base + "_metrics.pkl"
     pickle.dump(metrics_to_values, open(metric_fname, 'wb'))
 
 
@@ -93,6 +99,8 @@ if __name__ == "__main__":
     parser.add_argument("--dset_name", type=str, default="aamas1")
     parser.add_argument("--alloc_type", type=str, default="exp_usw_max")
     parser.add_argument("--conf_level", type=float, default=0.9)
+    parser.add_argument("--noise_multiplier", type=str, default=1.0)
+    parser.add_argument("--save_with_noise_multiplier", type=int, default=0)
 
     args = parser.parse_args()
     main(args)
