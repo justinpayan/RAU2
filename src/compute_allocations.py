@@ -93,13 +93,13 @@ def load_dset(dset_name, data_dir):
 
 # If doing on cs or aamas, assume the central_estimate are the parameters of a multivariate Bernoulli
 # else, assume Gaussian.
-def get_samples(central_estimate, std_devs, dset_name, num_samples=100):
+def get_samples(central_estimate, std_devs, dset_name, num_samples=100, noise_multiplier=1.0):
     rng = np.random.default_rng(seed=0)
     if dset_name.startswith("aamas") or dset_name == 'cs':
         samples = [rng.uniform(size=central_estimate.shape) < central_estimate for _ in range(num_samples)]
         return samples
     else:
-        return [rng.normal(central_estimate, std_devs) for _ in range(num_samples)]
+        return [rng.normal(central_estimate, std_devs*noise_multiplier) for _ in range(num_samples)]
 
 
 def main(args):
@@ -108,6 +108,8 @@ def main(args):
     conf_level = args.conf_level
     adv_usw_method = args.adv_usw_method
     mode = args.mode
+    noise_multiplier = args.noise_multiplier
+    save_with_noise_multiplier = args.save_with_noise_multiplier
 
     base_dir = "/mnt/nfs/scratch1/jpayan/RAU2"
     data_dir = os.path.join(base_dir, "data")
@@ -125,7 +127,7 @@ def main(args):
         alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
     if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs, dset_name)
+        value_samples = get_samples(central_estimate, std_devs, dset_name, noise_multiplier)
 
     if alloc_type == "cvar_usw":
         alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
@@ -149,10 +151,15 @@ def main(args):
     if mode == "save_alloc":
         print("Saving allocation", flush=True)
 
+        fname_base = os.path.join(output_dir, dset_outname_map[dset_name], "%s" % alloc_type)
+
         if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-            np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level)), alloc)
-        else:
-            np.save(os.path.join(output_dir, dset_outname_map[dset_name], "%s_alloc.npy" % alloc_type), alloc)
+            fname_base += ("_%.2f" % conf_level)
+
+        if args.save_with_noise_multiplier:
+            fname_base += ("_%.2f" % noise_multiplier)
+
+        np.save(fname_base + "_alloc.npy", alloc)
 
 
 
@@ -163,6 +170,8 @@ if __name__ == "__main__":
     parser.add_argument("--conf_level", type=float, default=0.9)
     parser.add_argument("--adv_usw_method", type=str, default="IQP")
     parser.add_argument("--mode", type=str, default='save_alloc')
+    parser.add_argument("--noise_multiplier", type=str, default=1.0)
+    parser.add_argument("--save_with_noise_multiplier", type=int, default=0)
 
 
     args = parser.parse_args()
