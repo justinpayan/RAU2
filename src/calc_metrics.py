@@ -65,20 +65,21 @@ def main(args):
         a = 1
         b = 0
 
-        print("Calculating adv usw", flush=True)
-        if dset_name.startswith("gauss"):
-            adv_usw = compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group[delta], groups)
-        else:
-            adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
+        if noise_multiplier == 0:
+            print("Calculating adv usw", flush=True)
+            if dset_name.startswith("gauss"):
+                adv_usw = compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group[delta], groups)
+            else:
+                adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 
-        print("Calculating adv gesw", flush=True)
-        if dset_name.startswith("gauss"):
-            adv_gesw = compute_adv_gesw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group[delta], groups)
-        else:
-            adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
+            print("Calculating adv gesw", flush=True)
+            if dset_name.startswith("gauss"):
+                adv_gesw = compute_adv_gesw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group[delta], groups)
+            else:
+                adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 
-        metrics_to_values['adv_usw'][c] = adv_usw
-        metrics_to_values['adv_gesw'][c] = adv_gesw
+            metrics_to_values['adv_usw'][c] = adv_usw
+            metrics_to_values['adv_gesw'][c] = adv_gesw
 
     print(metrics_to_values, flush=True)
 

@@ -127,7 +127,7 @@ def main(args):
         alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
     if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs, dset_name, noise_multiplier)
+        value_samples = get_samples(central_estimate, std_devs, dset_name, noise_multiplier=noise_multiplier)
 
     if alloc_type == "cvar_usw":
         alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
