@@ -42,7 +42,7 @@ def load_dset(dset_name, data_dir):
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
 
         cs = [3, 2, 2]
-        ls = [15, 15, 4]
+        ls = [15, 15, 10]
         covs_lb = cs[idx-1] * np.ones(central_estimate.shape[1])
         covs_ub = covs_lb
         loads = ls[idx-1] * np.ones(central_estimate.shape[0])
