@@ -128,6 +128,7 @@ def main(args):
 
     if alloc_type.startswith("cvar"):
         value_samples = get_samples(central_estimate, std_devs, dset_name, noise_multiplier=noise_multiplier)
+        print(value_samples[10][10, 10])
 
     if alloc_type == "cvar_usw":
         alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)

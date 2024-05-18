@@ -58,7 +58,10 @@ def main(args):
 
     conf_levels = [0.01, 0.05, 0.1, 0.2, 0.3]
 
-    value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=1000, noise_multiplier=noise_multiplier)
+    # TODO: Remove later, but for now test on same samples we trained on
+    value_samples = get_samples(central_estimate, std_devs, dset_name, noise_multiplier=noise_multiplier)
+    print(value_samples[10][10, 10])
+    # value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=1000, noise_multiplier=noise_multiplier)
 
     for c in conf_levels:
         print("Calculating cvar usw", flush=True)
