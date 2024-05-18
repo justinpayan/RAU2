@@ -5,6 +5,7 @@ import torch
 from collections import Counter
 import gurobipy as gp
 from gurobipy import Model, multidict, GRB
+from scipy.stats import norm
 
 import random
 import time
@@ -129,6 +130,60 @@ def solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, 
     cvar_gesw_problem.solve(verbose=True, solver='GUROBI', mipgap=0.05)
 
     return gesw_alloc.value
+
+def solve_cvar_usw_gauss(mu_matrix, sigma_matrix, covs_lb, covs_ub, loads, conf_level, coi_mask):
+    m = Model("TPMS")
+
+    alloc = m.addMVar(mu_matrix.shape, vtype=GRB.BINARY, name='alloc')
+
+    m.addConstr(alloc.sum(axis=0) >= covs_lb)
+    m.addConstr(alloc.sum(axis=0) <= covs_ub)
+    m.addConstr(alloc.sum(axis=1) <= loads)
+    m.addConstr(alloc <= coi_mask)
+
+    aux = m.addVar(lb=0)
+
+    m.addConstr(aux**2 == (alloc * sigma_matrix * alloc).sum())
+
+    frac = norm.pdf(norm.ppf(conf_level))/(1-conf_level)
+    obj = (alloc * mu_matrix).sum() - frac*aux
+    m.setObjective(obj, GRB.MAXIMIZE)
+
+    m.optimize()
+
+    return alloc.x
+
+def solve_cvar_gesw_gauss(mu_matrix, sigma_matrix, covs_lb, covs_ub, loads, conf_level, groups, coi_mask):
+    m = Model("TPMS")
+
+    alloc = m.addMVar(mu_matrix.shape, vtype=GRB.BINARY, name='alloc')
+
+    m.addConstr(alloc.sum(axis=0) >= covs_lb)
+    m.addConstr(alloc.sum(axis=0) <= covs_ub)
+    m.addConstr(alloc.sum(axis=1) <= loads)
+    m.addConstr(alloc <= coi_mask)
+
+    n_groups = len(set(groups))
+
+    t = m.addVar()
+    obj = t
+
+    for gidx in range(n_groups):
+        gmask = np.where(groups == gidx)[0]
+        a = alloc[:, gmask]
+        sd = sigma_matrix[:, gmask]
+        mu = mu_matrix[:, gmask]
+        grpsize = gmask.size
+
+        m.addConstr()
+
+
+    m.setObjective(obj, GRB.MAXIMIZE)
+
+    m.optimize()
+
+    return alloc.x
+
 
 def prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups):
     n_groups = len(set(groups))
@@ -1322,3 +1377,5 @@ def run():
 
 if __name__=='__main__':
     run()
+
+

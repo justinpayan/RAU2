@@ -4,7 +4,8 @@ import os
 import pickle
 import sys
 
-from allocation_code import solve_usw_gurobi, solve_gesw, solve_cvar_usw, solve_cvar_gesw, solve_adv_usw, solve_adv_gesw
+from allocation_code import solve_usw_gurobi, solve_gesw, \
+    solve_cvar_usw, solve_cvar_gesw, solve_adv_usw, solve_adv_gesw, solve_cvar_usw_gauss, solve_cvar_gesw_gauss
 from scipy.stats import chi2
 
 
@@ -139,13 +140,20 @@ def main(args):
         alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
     if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=200, noise_multiplier=noise_multiplier, seed=0, paired=True)
+        value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=300, noise_multiplier=noise_multiplier, seed=0, paired=True)
         print(value_samples[10][10, 10])
 
-    if alloc_type == "cvar_usw":
-        alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
-    elif alloc_type == "cvar_gesw":
-        alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
+    if alloc_type == "cvar_usw" or alloc_type == "cvar_gesw":
+        # if dset_name.startswith("gauss"):
+        #     if alloc_type == "cvar_usw":
+        #         alloc = solve_cvar_usw_gauss(covs_lb, covs_ub, loads, conf_level, coi_mask)
+        #     elif alloc_type == "cvar_gesw":
+        #         alloc = solve_cvar_gesw_gauss(covs_lb, covs_ub, loads, conf_level, groups, coi_mask)
+        # else:
+        if alloc_type == "cvar_usw":
+            alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
+        elif alloc_type == "cvar_gesw":
+            alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
     if alloc_type == "adv_usw":
         delta = conf_level
