@@ -50,7 +50,7 @@ def load_dset(dset_name, data_dir):
         ngroups = len(set(groups))
 
         rhs_bd_per_group = {}
-        for delta in [.3, .2, .1, .05]:
+        for delta in [.3, .2, .1, .05, .01]:
             rhs_bd_per_group[delta] = []
             for gidx in range(ngroups):
                 gmask = np.where(groups == gidx)[0]

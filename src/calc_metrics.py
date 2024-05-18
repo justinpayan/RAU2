@@ -23,10 +23,15 @@ def main(args):
 
     print("Loaded dataset %s, loading %s allocation. Conf level %.2f" % (dset_name, alloc_type, conf_level), flush=True)
 
+    fname_base = os.path.join(output_dir, dset_outname_map[dset_name], "%s" % alloc_type)
+
     if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-        alloc_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_alloc.npy" % (alloc_type, conf_level))
-    else:
-        alloc_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_alloc.npy" % alloc_type)
+        fname_base += ("_%.2f" % conf_level)
+
+    if save_with_noise_multiplier:
+        fname_base += ("_%.2f" % noise_multiplier)
+
+    alloc_fname = fname_base + "_alloc.npy"
 
     allocation = np.load(alloc_fname)
 
