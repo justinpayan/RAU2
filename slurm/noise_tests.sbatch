@@ -8,7 +8,7 @@ NOISE_MULTIPLIER=$4
 JN=noisetest_${DSET_NAME}_${ALLOC_TYPE}_${NOISE_MULTIPLIER}_${CONF_LEVEL}
 
 sbatch \
---job-name= \
+--job-name=${JN} \
 --output=/mnt/nfs/scratch1/jpayan/logs/RAU2/${JN}_alloc.out \
 --error=/mnt/nfs/scratch1/jpayan/logs/RAU2/${JN}_alloc.err \
 --mem=32G \
