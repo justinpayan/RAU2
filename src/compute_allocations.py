@@ -170,7 +170,7 @@ if __name__ == "__main__":
     parser.add_argument("--conf_level", type=float, default=0.9)
     parser.add_argument("--adv_usw_method", type=str, default="IQP")
     parser.add_argument("--mode", type=str, default='save_alloc')
-    parser.add_argument("--noise_multiplier", type=str, default=1.0)
+    parser.add_argument("--noise_multiplier", type=float, default=1.0)
     parser.add_argument("--save_with_noise_multiplier", type=int, default=0)
 
 

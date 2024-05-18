@@ -99,7 +99,7 @@ if __name__ == "__main__":
     parser.add_argument("--dset_name", type=str, default="aamas1")
     parser.add_argument("--alloc_type", type=str, default="exp_usw_max")
     parser.add_argument("--conf_level", type=float, default=0.9)
-    parser.add_argument("--noise_multiplier", type=str, default=1.0)
+    parser.add_argument("--noise_multiplier", type=float, default=1.0)
     parser.add_argument("--save_with_noise_multiplier", type=int, default=0)
 
     args = parser.parse_args()
