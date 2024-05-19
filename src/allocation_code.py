@@ -257,10 +257,9 @@ def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_
     else:
         if method == "ProjGD":
             step_size = 1e-3
-            egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads,
-                                                         [v.flatten() for v in var_l], rhs_bd_per_group, 1e-3,
-                                                         step_size, 1e-5, coi_mask_l)
-            group_allocs, _, _ = egalObject.gradient_descent()
+            egalObject = ComputeGroupEgalitarianQuadraticProj(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads,
+                                                         [v.flatten() for v in var_l], rhs_bd_per_group, step_size)
+            group_allocs, _, _, timestamps, obj_vals = egalObject.gradient_descent()
         elif method == "SubgradAsc":
             group_allocs, timestamps, obj_vals = subgrad_ascent_egal_ellipsoid(ce_l, covs_lb_l, covs_ub_l, loads, var_l,
                                                                                rhs_bd_per_group)
@@ -271,7 +270,7 @@ def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_
     for gidx in range(len(set(groups))):
         gmask = np.where(groups == gidx)[0]
         final_alloc[:, gmask] = group_allocs[gidx].reshape(final_alloc[:, gmask].shape)
-    return final_alloc
+    return final_alloc, timestamps, obj_vals
 
 
 def compute_group_utilitarian_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, covs_lb_l, covs_ub_l, milp=False):
@@ -1011,6 +1010,7 @@ def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
     group_allocs = [np.clip(np.random.randn(mu.shape[0], mu.shape[1]), 0, 1) for mu in mu_list]
 
     global_opt_obj = -np.inf
+    prev_obj_val = -np.inf
     global_opt_alloc = [ga.copy() for ga in group_allocs]
 
     t = 0
@@ -1023,36 +1023,30 @@ def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
     st = time.time()
 
     while not converged and t < max_iter:
+        # Project to the set of feasible allocations
+        print("Projecting to feasible: %s elapsed" % (time.time() - st))
+        group_allocs = project_to_feasible(group_allocs, covs_lb_l, covs_ub_l, loads)
+
         # Compute the worst-case V matrix
         print("Computing worst case V matrix")
         print("%s elapsed" % (time.time() - st))
         obj_val, worst_vs = get_worst_case_usw(group_allocs, mu_list, Sigma_list, rad_list)
 
-        # Update the allocation
-        # 1, compute the gradient
-        # 2, update using the rate parameter times the gradient.
-        # 3, project to the set of allocations that meet all the hard constraints
-
-        old_allocs = [a.copy() for a in group_allocs]
-        # alloc_grad = worst_s
-
-        rate = 1 / (t + 1)
-        group_allocs = [old_a + rate * v for old_a, v in zip(old_allocs, worst_vs)]
-
-        # Project to the set of feasible allocations
-        print("Projecting to feasible: %s elapsed" % (time.time() - st))
-        group_allocs = project_to_feasible(group_allocs, covs_lb_l, covs_ub_l, loads)
-
-        prev_obj_val = obj_val
-        if prev_obj_val > global_opt_obj:
-            converged = (prev_obj_val - global_opt_obj < 1e-3)
-            global_opt_obj = prev_obj_val
+        if obj_val > global_opt_obj:
+            global_opt_obj = obj_val
             global_opt_alloc = group_allocs
         t += 1
 
+        converged = (np.abs(prev_obj_val - obj_val) < 1e-3)
+
+        prev_obj_val = obj_val
+
+        rate = 1 / (t + 1)
+        group_allocs = [a + rate * v for a, v in zip(group_allocs, worst_vs)]
+
         if t % 1 == 0:
             print("Step %d" % t)
-            print("Obj value from prev step: ", prev_obj_val)
+            print("Obj value: ", obj_val)
             print("%s elapsed" % (time.time() - st))
 
         iter_timestamps.append(time.time() - st)
@@ -1066,6 +1060,9 @@ def get_worst_case_gesw(group_allocs, group_mus, group_variances, rhs_bd_per_gro
 
     ngroups = len(group_allocs)
 
+    gesw = m.addVar()
+    aux_vars = m.addVars(ngroups, vtype=gp.GRB.CONTINUOUS)
+
     obj_terms = []
 
     vs = []
@@ -1077,20 +1074,24 @@ def get_worst_case_gesw(group_allocs, group_mus, group_variances, rhs_bd_per_gro
         ce = group_mus[gidx]
         var = group_variances[gidx]
         rhs_bd = rhs_bd_per_group[gidx]
+        grpsize = ce.shape[1]
 
         v = m.addMVar(ce.shape)
 
         m.addConstr(((v - ce) * (1 / var) * (v - ce)).sum() <= rhs_bd ** 2)
 
         m.addConstr(v >= 0)
-        obj_terms.append((a * v).sum())
+        m.addConstr(aux_vars[gidx] == (a * v).sum()/grpsize)
+
         vs.append(v)
-    obj = gp.quicksum(t for t in obj_terms)
-    m.setObjective(obj)
+    m.addConstr(gesw == gp.min_(aux_vars))
+    m.setObjective(gesw)
     m.optimize()
     m.setParam('OutputFlag', 1)
 
-    return obj.getValue(), [v.X for v in vs]
+    worst_group = np.argmin([av.X for av in aux_vars])
+
+    return gesw.getValue(), [v.X for v in vs], worst_group
 
 def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_list, rad_list):
     group_allocs = [np.clip(np.random.randn(mu.shape[0], mu.shape[1]), 0, 1) for mu in mu_list]
@@ -1108,36 +1109,30 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
     st = time.time()
 
     while not converged and t < max_iter:
-        # Compute the worst-case V matrix
-        print("Computing worst case V matrix")
-        print("%s elapsed" % (time.time() - st))
-        obj_val, worst_vs = get_worst_case_usw(group_allocs, mu_list, Sigma_list, rad_list)
-
-        # Update the allocation
-        # 1, compute the gradient
-        # 2, update using the rate parameter times the gradient.
-        # 3, project to the set of allocations that meet all the hard constraints
-
-        old_allocs = [a.copy() for a in group_allocs]
-        # alloc_grad = worst_s
-
-        rate = 1 / (t + 1)
-        group_allocs = [old_a + rate * v for old_a, v in zip(old_allocs, worst_vs)]
-
         # Project to the set of feasible allocations
         print("Projecting to feasible: %s elapsed" % (time.time() - st))
         group_allocs = project_to_feasible(group_allocs, covs_lb_l, covs_ub_l, loads)
 
-        prev_obj_val = obj_val
-        if prev_obj_val > global_opt_obj:
-            converged = (prev_obj_val - global_opt_obj < 1e-3)
-            global_opt_obj = prev_obj_val
+        # Compute the worst-case V matrix
+        print("Computing worst case V matrix")
+        print("%s elapsed" % (time.time() - st))
+        obj_val, worst_vs, worst_group = get_worst_case_gesw(group_allocs, mu_list, Sigma_list, rad_list)
+
+        if obj_val > global_opt_obj:
+            global_opt_obj = obj_val
             global_opt_alloc = group_allocs
         t += 1
 
+        converged = (np.abs(prev_obj_val - obj_val) < 1e-3)
+
+        prev_obj_val = obj_val
+
+        rate = 1 / (t + 1)
+        group_allocs[worst_group] += rate * worst_vs[worst_group]
+
         if t % 1 == 0:
             print("Step %d" % t)
-            print("Obj value from prev step: ", prev_obj_val)
+            print("Obj value: ", obj_val)
             print("%s elapsed" % (time.time() - st))
 
         iter_timestamps.append(time.time() - st)
@@ -1279,7 +1274,8 @@ class ComputeGroupEgalitarianQuadratic():
         self.n_iter = n_iter
         self.penalty_wt = penalty_wt
         self.coi_mask_l = coi_mask_l
-
+        self.timestamps = []
+        self.obj_vals = []
 
         self.ngroups = len(self.mu_list)
         self.nA_list = []
@@ -1380,6 +1376,7 @@ class ComputeGroupEgalitarianQuadratic():
         loss_BGD = []
         prev_w_welfare=None
         w_welfare = None
+        st = time.time()
         for i in range(self.n_iter):
             loss = self.func() + self.compute_penalty()
             print(f"Iter {i} Loss {loss}", flush=True)
@@ -1599,6 +1596,8 @@ class ComputeGroupEgalitarianQuadraticProj():
         self.loads = loads
         self.step_size = step_size
         self.n_iter = n_iter
+        self.timestamps = []
+        self.obj_vals = []
 
         self.eta = .1
 
@@ -1690,6 +1689,8 @@ class ComputeGroupEgalitarianQuadraticProj():
     def gradient_descent(self):
         loss_BGD = []
 
+        st = time.time()
+
         for i in range(self.n_iter):
             loss = self.func()
             print(f"Iter {i} Loss {loss}")
@@ -1713,11 +1714,10 @@ class ComputeGroupEgalitarianQuadraticProj():
             sum_w = np.sum(welfares)
             self.scheduler.step(worst_w)
             print(f'Iter: {i}, \tLoss: {loss.item()} Worst welfare: {worst_w} Welfare sum: {sum_w}')
+            self.timestamps.append(time.time() - st)
+            self.obj_vals.append(worst_w)
 
-
-        return self.A_tl, self.beta_tns, self.Lamda_tns
-
-
+        return self.A_tl, self.beta_tns, self.Lamda_tns, self.timestamps, self.obj_vals
 
     def convert_to_numpy(self, X_list):
         n = len(X_list)

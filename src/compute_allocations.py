@@ -147,7 +147,7 @@ def main(args):
     dset_name = args.dset_name
     alloc_type = args.alloc_type
     conf_level = args.conf_level
-    adv_usw_method = args.adv_usw_method
+    adv_method = args.adv_method
     mode = args.mode
     noise_multiplier = args.noise_multiplier
     save_with_noise_multiplier = args.save_with_noise_multiplier
@@ -199,7 +199,7 @@ def main(args):
 
         if alloc_type == "adv_usw":
             delta = conf_level
-            alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_usw_method)
+            alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_method)
             if mode == "time" and timestamps is not None:
                 print("Saving out timestamps and objective values for iterations")
                 timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
@@ -209,7 +209,16 @@ def main(args):
 
         elif alloc_type == "adv_gesw":
             delta = conf_level
-            alloc = solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
+            if adv_method == "IQP":
+                adv_method = "ProjGD"
+            alloc, timestamps, obj_vals = solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_method)
+
+            if mode == "time" and timestamps is not None:
+                print("Saving out timestamps and objective values for iterations")
+                timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
+                pickle.dump(timestamps, open(timestamp_fname, 'wb'))
+                obj_vals_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_obj_vals.pkl" % (alloc_type, conf_level))
+                pickle.dump(obj_vals, open(obj_vals_fname, 'wb'))
 
         if mode == "save_alloc":
             print("Saving allocation", flush=True)
@@ -233,7 +242,7 @@ if __name__ == "__main__":
     parser.add_argument("--dset_name", type=str, default="aamas1")
     parser.add_argument("--alloc_type", type=str, default="exp_usw_max")
     parser.add_argument("--conf_level", type=float, default=0.9)
-    parser.add_argument("--adv_usw_method", type=str, default="IQP")
+    parser.add_argument("--adv_method", type=str, default="IQP")
     parser.add_argument("--mode", type=str, default='save_alloc')
     parser.add_argument("--noise_multiplier", type=float, default=1.0)
     parser.add_argument("--save_with_noise_multiplier", type=int, default=0)
