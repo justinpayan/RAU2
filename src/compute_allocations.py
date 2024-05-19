@@ -29,7 +29,7 @@ def load_dset(dset_name, data_dir, seed, mode='compute_alloc'):
         groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "prob_up_%d.npy" % idx))
-        std_devs = None
+        variances = None
 
         nrevs = central_estimate.shape[0]
         npaps = central_estimate.shape[1]
@@ -53,7 +53,7 @@ def load_dset(dset_name, data_dir, seed, mode='compute_alloc'):
     elif dset_name.startswith("gauss_aamas"):
         idx = int(dset_name[-1])
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "mu_matrix_%d.npy" % idx))
-        std_devs = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
+        variances = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
         groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
 
@@ -66,7 +66,7 @@ def load_dset(dset_name, data_dir, seed, mode='compute_alloc'):
         central_estimate = central_estimate[chosen_revs, :][:, chosen_paps]
         coi_mask = coi_mask[chosen_revs, :][:, chosen_paps]
         groups = groups[chosen_paps]
-        std_devs = std_devs[chosen_revs, :][:, chosen_paps]
+        variances = variances[chosen_revs, :][:, chosen_paps]
 
         cs = [3, 2, 2]
         ls = [15, 15, 10]
@@ -86,7 +86,7 @@ def load_dset(dset_name, data_dir, seed, mode='compute_alloc'):
 
     # elif dset_name == "ads":
     #     central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
-    #     std_devs = np.load(os.path.join(data_dir, "Advertising", "sigs.npy"))
+    #     variances = np.load(os.path.join(data_dir, "Advertising", "sigs.npy"))
     #     coi_mask = np.load(os.path.join(data_dir, "Advertising", "coi_mask.npy"))
     #
     #     covs_lb = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
@@ -112,22 +112,24 @@ def load_dset(dset_name, data_dir, seed, mode='compute_alloc'):
     #     covs_ub = 2 * np.ones(central_estimate.shape[1])
     #     loads = 20 * np.ones(central_estimate.shape[0])
     #     groups = np.load(os.path.join(data_dir, "cs", "groups.npy"))
-    #     std_devs = None
+    #     variances = None
 
     covs_lb = np.minimum(covs_lb, np.sum(coi_mask, axis=0))
 
-    return central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group
+    return central_estimate, variances, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group
 
 # If doing on cs or aamas, assume the central_estimate are the parameters of a multivariate Bernoulli
 # else, assume Gaussian.
-def get_samples(central_estimate, std_devs, dset_name, num_samples=100, noise_multiplier=1.0, seed=0, paired=False):
+def get_samples(central_estimate, variances, dset_name, num_samples=100, noise_multiplier=1.0, seed=0, paired=False):
     rng = np.random.default_rng(seed=seed)
     if dset_name.startswith("aamas") or dset_name == 'cs':
         samples = [rng.uniform(size=central_estimate.shape) < central_estimate for _ in range(num_samples)]
         return samples
     else:
+        std_devs = np.sqrt(variances)
+
         if paired:
-            # samples = [rng.normal(central_estimate, std_devs*noise_multiplier) for _ in range(num_samples)]
+            # samples = [rng.normal(central_estimate, variances*noise_multiplier) for _ in range(num_samples)]
             # left_only = []
             # for s in samples:
             #     left_only.append(central_estimate - np.abs(central_estimate - s))
@@ -168,7 +170,7 @@ def main(args):
 
     fname = fname_base + "_alloc.npy"
     if not os.path.exists(fname):
-        central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed, mode)
+        central_estimate, variances, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed, mode)
 
         print("Loaded dataset %s, computing %s allocation" % (dset_name, alloc_type), flush=True)
 
@@ -180,15 +182,15 @@ def main(args):
             alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
         if alloc_type.startswith("cvar"):
-            value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=n_samples, noise_multiplier=noise_multiplier, seed=seed, paired=True)
+            value_samples = get_samples(central_estimate, variances, dset_name, num_samples=n_samples, noise_multiplier=noise_multiplier, seed=seed, paired=True)
             print(value_samples[10][10, 10])
 
         if alloc_type == "cvar_usw" or alloc_type == "cvar_gesw":
             # if dset_name.startswith("gauss"):
             #     if alloc_type == "cvar_usw":
-            #         alloc = solve_cvar_usw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, coi_mask)
+            #         alloc = solve_cvar_usw_gauss(central_estimate, variances, covs_lb, covs_ub, loads, conf_level, coi_mask)
             #     elif alloc_type == "cvar_gesw":
-            #         alloc = solve_cvar_gesw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, groups, coi_mask)
+            #         alloc = solve_cvar_gesw_gauss(central_estimate, variances, covs_lb, covs_ub, loads, conf_level, groups, coi_mask)
             # else:
             if alloc_type == "cvar_usw":
                 alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
@@ -197,7 +199,7 @@ def main(args):
 
         if alloc_type == "adv_usw":
             delta = conf_level
-            alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_usw_method)
+            alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_usw_method)
             if mode == "time" and timestamps is not None:
                 print("Saving out timestamps and objective values for iterations")
                 timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
@@ -207,7 +209,7 @@ def main(args):
 
         elif alloc_type == "adv_gesw":
             delta = conf_level
-            alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
+            alloc = solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
 
         if mode == "save_alloc":
             print("Saving allocation", flush=True)

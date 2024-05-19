@@ -218,13 +218,13 @@ def prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups):
     return a_l, b_l, ce_l, sd_l, covs_lb_l, covs_ub_l, coi_mask_l
 
 
-def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups, method="IQP"):
+def solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups, method="IQP"):
     a_l, b_l, ce_l, sd_l, covs_lb_l, covs_ub_l, coi_mask_l = \
-        prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups)
+        prep_groups(central_estimate, variances, covs_lb, covs_ub, coi_mask, groups)
 
     timestamps, obj_vals = None, None
 
-    if std_devs is None:
+    if variances is None:
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
@@ -239,7 +239,7 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
             obj = ComputeUtilitarianQuadraticProj(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, step_size)
             group_allocs, _, _, timestamps, obj_vals = obj.gradient_descent()
         elif method == "SubgradAsc":
-            pass
+            group_allocs,timestamps, obj_vals = subgrad_ascent_util_ellipsoid(ce_l, covs_lb_l, covs_ub_l, loads, sd_l, rhs_bd_per_group)
 
 
     # Stitch together group_allocs into a single allocation and return it
@@ -249,10 +249,10 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
         final_alloc[:, gmask] = group_allocs[gidx].reshape(final_alloc[:, gmask].shape)
     return final_alloc, timestamps, obj_vals
 
-def solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups):
+def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups):
     a_l, b_l, ce_l, sd_l, covs_lb_l, covs_ub_l, coi_mask_l = \
-        prep_groups(central_estimate, std_devs, covs_lb, covs_ub, coi_mask, groups)
-    if std_devs is None:
+        prep_groups(central_estimate, variances, covs_lb, covs_ub, coi_mask, groups)
+    if variances is None:
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_egal_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
@@ -908,6 +908,115 @@ class ComputeUtilitarianQuadraticProj():
             beta_grads.append(self.beta_tns[gdx].grad)
             lamda_grads = self.lamda_tns.grad
         return A_grads, beta_grads, lamda_grads
+
+def project_to_feasible_exact(alloc, covs, loads, use_verbose=False, init_guess=None):
+    # The allocation probably violates the coverage and reviewer load bounds.
+    # Find the allocation with the smallest L2 distance from the current one such
+    # that the constraints are satisfied
+    x = cp.Variable(shape=alloc.shape)
+    m, n = alloc.shape
+    cost = cp.sum_squares(x - alloc)
+    n_vec = np.ones((n, 1))
+    m_vec = np.ones((m, 1))
+    constraints = [x @ n_vec <= loads.reshape((m, 1)),
+                   x.T @ m_vec == covs.reshape((n, 1)),
+                   x >= np.zeros(x.shape),
+                   x <= np.ones(x.shape)]
+    prob = cp.Problem(cp.Minimize(cost), constraints)
+
+    if init_guess is not None:
+        x.value = init_guess
+        prob.solve(warm_start=True)
+    else:
+        prob.solve()
+
+    return x.value
+
+def get_worst_case_usw(group_allocs, group_mus, group_variances, rhs_bd_per_group):
+    print(rhs_bd_per_group)
+    m = gp.Model()
+
+    ngroups = len(group_allocs)
+
+    obj_terms = []
+
+    for gidx in range(ngroups):
+        print("setting up group ", gidx)
+
+        a = group_allocs[gidx]
+        ce = group_mus[gidx]
+        sd = group_variances[gidx]
+        rhs_bd = rhs_bd_per_group[gidx]
+
+        v = m.addMVar(ce.shape)
+
+        m.addConstr(((v - ce) * (1 / sd) * (v - ce)).sum() <= rhs_bd ** 2)
+
+        m.addConstr(v >= 0)
+        obj_terms.append((a * v).sum())
+    obj = gp.quicksum(t for t in obj_terms)
+    m.setObjective(obj)
+    m.optimize()
+    m.setParam('OutputFlag', 1)
+    # m.setParam('BarHomogeneous', 1)
+
+    return obj.getValue() / allocation.shape[1]
+
+def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_list, rad_list):
+    print("Solving for initial max USW alloc")
+    group_allocs = [np.clip(np.random.randn(mu.shape[0], mu.shape[1]), 0, 1) for mu in mu_list]
+
+    global_opt_obj = 0.0
+    global_opt_alloc = [ga.copy() for ga in group_allocs]
+
+    print("Solving max min: %s elapsed" % (time.time() - st))
+
+    t = 0
+    converged = False
+    max_iter = 1000
+
+    iter_timestamps = []
+    iter_obj_vals = []
+
+    st = time.time()
+
+    while not converged and t < max_iter:
+        # Compute the worst-case V matrix
+        print("Computing worst case V matrix")
+        print("%s elapsed" % (time.time() - st))
+        worst_s = get_worst_case_usw(alloc, tpms, error_bound)
+
+        diff = np.sqrt(np.sum((worst_s - tpms) ** 2))
+        assert diff - 1e-2 <= error_bound
+
+        # Update the allocation
+        # 1, compute the gradient
+        # 2, update using the rate parameter times the gradient.
+        # 3, project to the set of allocations that meet all the hard constraints
+
+        old_alloc = alloc.copy()
+        alloc_grad = worst_s
+
+        rate = 1 / (t + 1)
+        alloc = old_alloc + rate * alloc_grad
+
+        # Project to the set of feasible allocations
+        print("Projecting to feasible: %s elapsed" % (time.time() - st))
+        alloc = project_to_feasible(alloc, covs, loads)
+
+
+        prev_obj_val = np.sum(old_alloc * worst_s)
+        if prev_obj_val > global_opt_obj:
+            global_opt_obj = prev_obj_val
+            global_opt_alloc = old_alloc
+        t += 1
+
+        if t % 1 == 0:
+            print("Step %d" % t)
+            print("Obj value from prev step: ", prev_obj_val)
+            print("%s elapsed" % (time.time() - st))
+
+    return global_opt_alloc, iter_timestamps, iter_obj_vals
 
 
 def check_ellipsoid(Sigma, mu, x, rsquared):
