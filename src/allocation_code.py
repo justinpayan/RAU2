@@ -228,7 +228,7 @@ def solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_p
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
-    else
+    else:
         if method == "IQP":
             obj = UtilitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, coi_mask_l)
             _, group_allocs, _, timestamps, obj_vals = obj.iterative_optimization()
