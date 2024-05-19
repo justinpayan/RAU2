@@ -882,21 +882,22 @@ class ComputeUtilitarianQuadraticProj():
         model.addConstrs(load_sum[idx] <= self.loads[idx] for idx in range(total_agents))
 
         model.setObjective(gp.quicksum(
-            lamdas_abs[jdx]**2 + gp.quicksum(A_abss[jdx][idx]**2+ beta_abss[jdx][idx]**2 for idx in range(len(self.A_list[jdx].flatten()))) for jdx in range(g)), gp.GRB.MINIMIZE)
-        model.setParam('OutputFlag', 0)
+             gp.quicksum(A_abss[jdx][idx]**2 for idx in range(len(self.A_list[jdx].flatten()))) for jdx in range(g)), gp.GRB.MINIMIZE)
+        model.setParam('OutputFlag', 1)
 
 
         model.optimize()
         projected_As=[]
         projected_betas=[]
-        projected_lamda = None
 
         for idx in range(g):
             A = np.array(As[idx].X).reshape(A_vals[idx].shape)
-            beta = np.array(betas[idx].X).reshape(beta_vals[idx].shape)
-            projected_lamda = np.array(lamdas.X)
+            # beta = np.array(betas[idx].X).reshape(beta_vals[idx].shape)
+            beta = np.clip(beta_vals[idx], a_min=0, a_max=np.inf)
+            # projected_lamda = np.array(lamdas.X)
             projected_As.append(A)
             projected_betas.append(beta)
+        projected_lamda = np.clip(lamdas, a_min=0, a_max=np.inf)
         return projected_As, projected_betas, projected_lamda
 
 
@@ -1571,7 +1572,7 @@ class ComputeGroupEgalitarianQuadratic():
                 A_abss[jdx][idx] ** 2 + beta_abss[jdx][idx] ** 2 for idx in range(len(self.A_list[jdx].flatten()))) for
             jdx in range(g)), gp.GRB.MINIMIZE)
 
-        model.setParam('OutputFlag', 0)
+        model.setParam('OutputFlag', 1)
 
         model.optimize()
         projected_As = []
@@ -1898,7 +1899,7 @@ class ComputeGroupEgalitarianQuadraticProj():
 
         model.setObjective(gp.quicksum(
              gp.quicksum(A_abss[jdx][idx]**2 for idx in range(len(self.A_list[jdx].flatten()))) for jdx in range(g)), gp.GRB.MINIMIZE)
-        model.setParam('OutputFlag', 0)
+        model.setParam('OutputFlag', 1)
 
 
         model.optimize()
@@ -1969,7 +1970,8 @@ def run():
     # egalObject.gradient_descent()
 
     Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, integer=False)
-    Util.iterative_optimization(group_welfare=False)
+    alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
+    print(iter_times, iter_objs)
 
 
 if __name__=='__main__':
