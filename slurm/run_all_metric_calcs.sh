@@ -13,7 +13,7 @@
 #  done
 #done
 
-for SEED in {1..50}; do
+for SEED in {1..20}; do
   for DSET_NAME in "aamas1" "aamas2" "aamas3" "gauss_aamas1" "gauss_aamas2" "gauss_aamas3"; do
     for ALLOC_TYPE in "exp_usw_max" "exp_gesw_max"; do
       ./submit_calc_metrics.sbatch ${DSET_NAME} ${ALLOC_TYPE} 0 $SEED

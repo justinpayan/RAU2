@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-for seed in {1..50}; do
+for seed in {1..20}; do
   for DSET_NAME in "gauss_aamas1" "gauss_aamas2" "gauss_aamas3"; do
     for ALLOC_TYPE in "exp_usw_max" "exp_gesw_max"; do
         for NOISE_MULTIPLIER in 1.0 10.0 20.0 30.0 40.0 50.0 60.0 70.0 80.0 90.0 100.0; do
