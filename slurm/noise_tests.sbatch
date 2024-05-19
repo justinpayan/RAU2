@@ -11,9 +11,9 @@ sbatch \
 --job-name=${JN} \
 --output=/mnt/nfs/scratch1/jpayan/logs/RAU2/${JN}_alloc.out \
 --error=/mnt/nfs/scratch1/jpayan/logs/RAU2/${JN}_alloc.err \
---mem=32G \
+--mem=64G \
 --nodes=1 \
 --ntasks=1 \
---time=0-04:00:00 \
+--time=0-08:00:00 \
 --partition=defq \
 ./noise_tests.sh ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${NOISE_MULTIPLIER}
