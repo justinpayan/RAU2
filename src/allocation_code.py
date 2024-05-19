@@ -255,12 +255,12 @@ def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_
         group_allocs, _ = compute_group_egal_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
-       if method == "ProjGD":
-           step_size = 1e-3
-           egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads,
+        if method == "ProjGD":
+            step_size = 1e-3
+            egalObject = ComputeGroupEgalitarianQuadratic(ce_l, covs_lb_l, covs_ub_l, loads,
                                                          [v.flatten() for v in var_l], rhs_bd_per_group, 1e-3,
                                                          step_size, 1e-5, coi_mask_l)
-           group_allocs, _, _ = egalObject.gradient_descent()
+            group_allocs, _, _ = egalObject.gradient_descent()
         elif method == "SubgradAsc":
             group_allocs, timestamps, obj_vals = subgrad_ascent_egal_ellipsoid(ce_l, covs_lb_l, covs_ub_l, loads, var_l,
                                                                                rhs_bd_per_group)
