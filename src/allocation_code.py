@@ -695,6 +695,7 @@ class ComputeUtilitarianQuadraticProj():
             params.append(self.beta_tns[gdx])
 
         self.optimizer = torch.optim.Adam(params, lr=self.step_size)
+        # self.optimizer = torch.optim.SGD(params, lr=self.step_size)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
 
     def welfare(self):
@@ -725,15 +726,15 @@ class ComputeUtilitarianQuadraticProj():
             Sigma_g = self.sigma_tns[gdx]
             term1 = torch.sum((Cg * (Ag - Bg)).flatten() * Vg.flatten())
             temp = (Cg * (Ag - Bg)).reshape(-1, 1)
-            print(temp)
+            # print(temp)
             term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-3))
             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx]
-            print(term1, term2, term3)
+            # print(term1, term2, term3)
             # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
             # print(term)
             # term_sum = term_sum + term
             terms[gdx] += term1 + term2[0, 0] + term3
-            print()
+            # print()
         return -1 * torch.sum(terms)
         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         # return -soft_min
@@ -742,6 +743,10 @@ class ComputeUtilitarianQuadraticProj():
         loss_BGD = []
 
         start_time = time.time()
+
+        prev_welfare = -np.inf
+
+        ctr = 0
 
         for i in range(self.n_iter):
             loss = self.func()
@@ -762,12 +767,22 @@ class ComputeUtilitarianQuadraticProj():
             self.Lamda_tns.data = torch.Tensor(projected_lamda)
             welfares = self.welfare()
             sum_w = np.sum(welfares)
+
+            if np.abs(sum_w - prev_welfare) < 1e-4:
+                ctr += 1
+            else:
+                ctr = 0
+            if ctr > 20:
+                break
+
+            prev_welfare = sum_w
+
             self.scheduler.step(sum_w)
 
             self.timestamps.append(time.time() - start_time)
             self.objective_vals.append(sum_w)
 
-            print(f'Iter: {i}, \tLoss: {loss.item()} Worst welfare: {worst_w} Welfare sum: {sum_w}')
+            print(f'Iter: {i}, \tLoss: {loss.item()}, Welfare sum: {sum_w}')
 
         return self.convert_to_numpy(self.A_tl), self.beta_tns, self.Lamda_tns, self.timestamps, self.objective_vals
 
@@ -924,6 +939,7 @@ class ComputeGroupEgalitarianQuadraticProj():
             params.append(self.beta_tns[gdx])
 
         self.optimizer = torch.optim.Adam(params, lr=self.step_size)
+        # self.optimizer = torch.optim.SGD(params, lr=self.step_size)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
 
     def welfare(self):
@@ -958,15 +974,15 @@ class ComputeGroupEgalitarianQuadraticProj():
             Sigma_g = self.sigma_tns[gdx]
             term1 = torch.sum((Cg * (Ag/gsize - Bg)).flatten() * Vg.flatten())
             temp = (Cg * (Ag/gsize - Bg)).reshape(-1, 1)
-            print(temp)
+            # print(temp)
             term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx]))
             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx]
-            print(term1, term2, term3)
+            # print(term1, term2, term3)
             # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
             # print(term)
             # term_sum = term_sum + term
             terms[gdx] += term1 + term2[0, 0] + term3
-            print()
+            # print()
         return -1 * torch.min(terms)
         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         # return -soft_min
@@ -975,6 +991,9 @@ class ComputeGroupEgalitarianQuadraticProj():
         loss_BGD = []
 
         st = time.time()
+        prev_welfare = -np.inf
+
+        ctr = 0
 
         for i in range(self.n_iter):
             loss = self.func()
@@ -996,6 +1015,15 @@ class ComputeGroupEgalitarianQuadraticProj():
             welfares = self.welfare()
             worst_w = np.min(welfares)
             sum_w = np.sum(welfares)
+
+            if np.abs(worst_w - prev_welfare) < 1e-4:
+                ctr += 1
+            else:
+                ctr = 0
+            if ctr > 20:
+                break
+            prev_welfare = worst_w
+
             self.scheduler.step(worst_w)
             print(f'Iter: {i}, \tLoss: {loss.item()} Worst welfare: {worst_w} Welfare sum: {sum_w}')
             self.timestamps.append(time.time() - st)
@@ -1374,7 +1402,6 @@ def run():
     ksquared = k * k
     sigma = np.eye(n) * ksquared
     mu = np.random.uniform(0.1, 1, n)
-    coi_mask = np.oneslike(mu)
     p = np.random.rand()
     df = np.random.randint(1, 10)
     from scipy.stats import chi2
@@ -1384,6 +1411,7 @@ def run():
 
     std_devs = np.sqrt(np.diag(sigma))
     mu = mu.reshape((n_reviewers, n_papers))
+    coi_mask = np.ones_like(mu)
     ngroups = 3
     k = int(n_reviewers / ngroups)
     step_size = 1e-1
@@ -1399,15 +1427,17 @@ def run():
 
     Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
 
-    # egalObject =    ComputeGroupEgalitarianQuadratic(mu_list, covs_list, loads_list, Sigma_list, rad_list, eta, step_size, n_iter=1000)
-    # egalObject.gradient_descent()
 
-    egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
-                                                      rad_list, step_size, n_iter=1000)
-    egalObject.gradient_descent()
 
-    # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, integer=False)
+    # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
+    #                                                   rad_list, step_size, n_iter=1000)
+    # _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
+
+    # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
     # alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
+
+    # utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
+    # _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
     # print(iter_times, iter_objs)
 
 
