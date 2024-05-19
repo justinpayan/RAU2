@@ -228,7 +228,11 @@ def solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_p
 
     timestamps, obj_vals = None, None
 
+    print("Solving adv usw using method ", method)
+
     if variances is None:
+        print("Actually, it is linear, solving QP directly")
+
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
@@ -256,11 +260,14 @@ def solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_p
 
 def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups,
                    method="ProjGD"):
+    print("Solving adv gesw using method ", method)
+
     a_l, b_l, ce_l, var_l, covs_lb_l, covs_ub_l, coi_mask_l = \
         prep_groups(central_estimate, variances, covs_lb, covs_ub, coi_mask, groups)
     timestamps = None
     obj_vals = None
     if variances is None:
+        print("Actually, it is linear, solving QP directly")
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_egal_linear(a_l, b_l, ce_l, coi_mask_l,
                                                     rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
