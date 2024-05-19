@@ -154,61 +154,73 @@ def main(args):
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed)
+    fname_base = os.path.join(output_dir, dset_outname_map[dset_name], "%s" % alloc_type)
 
-    print("Loaded dataset %s, computing %s allocation" % (dset_name, alloc_type), flush=True)
+    if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
+        fname_base += ("_%.2f" % conf_level)
 
-    # If we are wanting exp_usw_max or exp_gesw_max, we can just compute those using the central estimates.
-    # Save the results to outputs/{AAMAS, Advertising, cs}
-    if alloc_type == "exp_usw_max":
-        alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads, coi_mask)
-    elif alloc_type == "exp_gesw_max":
-        alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
+    if save_with_noise_multiplier:
+        fname_base += ("_%.2f" % noise_multiplier)
 
-    if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=n_samples, noise_multiplier=noise_multiplier, seed=seed, paired=True)
-        print(value_samples[10][10, 10])
+    fname_base += "_%d" % seed
 
-    if alloc_type == "cvar_usw" or alloc_type == "cvar_gesw":
-        # if dset_name.startswith("gauss"):
-        #     if alloc_type == "cvar_usw":
-        #         alloc = solve_cvar_usw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, coi_mask)
-        #     elif alloc_type == "cvar_gesw":
-        #         alloc = solve_cvar_gesw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, groups, coi_mask)
-        # else:
-        if alloc_type == "cvar_usw":
-            alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
-        elif alloc_type == "cvar_gesw":
-            alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
+    fname = fname_base + "_alloc.npy"
+    if not os.path.exists(fname):
+        central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed)
 
-    if alloc_type == "adv_usw":
-        delta = conf_level
-        alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_usw_method)
-        if mode == "time" and timestamps is not None:
-            print("Saving out timestamps and objective values for iterations")
-            timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
-            pickle.dump(timestamps, open(timestamp_fname, 'wb'))
-            obj_vals_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_obj_vals.pkl" % (alloc_type, conf_level))
-            pickle.dump(obj_vals, open(obj_vals_fname, 'wb'))
+        print("Loaded dataset %s, computing %s allocation" % (dset_name, alloc_type), flush=True)
 
-    elif alloc_type == "adv_gesw":
-        delta = conf_level
-        alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
+        # If we are wanting exp_usw_max or exp_gesw_max, we can just compute those using the central estimates.
+        # Save the results to outputs/{AAMAS, Advertising, cs}
+        if alloc_type == "exp_usw_max":
+            alloc = solve_usw_gurobi(central_estimate, covs_lb, covs_ub, loads, coi_mask)
+        elif alloc_type == "exp_gesw_max":
+            alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
-    if mode == "save_alloc":
-        print("Saving allocation", flush=True)
+        if alloc_type.startswith("cvar"):
+            value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=n_samples, noise_multiplier=noise_multiplier, seed=seed, paired=True)
+            print(value_samples[10][10, 10])
 
-        fname_base = os.path.join(output_dir, dset_outname_map[dset_name], "%s" % alloc_type)
+        if alloc_type == "cvar_usw" or alloc_type == "cvar_gesw":
+            # if dset_name.startswith("gauss"):
+            #     if alloc_type == "cvar_usw":
+            #         alloc = solve_cvar_usw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, coi_mask)
+            #     elif alloc_type == "cvar_gesw":
+            #         alloc = solve_cvar_gesw_gauss(central_estimate, std_devs, covs_lb, covs_ub, loads, conf_level, groups, coi_mask)
+            # else:
+            if alloc_type == "cvar_usw":
+                alloc = solve_cvar_usw(covs_lb, covs_ub, loads, conf_level, value_samples, coi_mask)
+            elif alloc_type == "cvar_gesw":
+                alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
-        if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
-            fname_base += ("_%.2f" % conf_level)
+        if alloc_type == "adv_usw":
+            delta = conf_level
+            alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups, method=adv_usw_method)
+            if mode == "time" and timestamps is not None:
+                print("Saving out timestamps and objective values for iterations")
+                timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
+                pickle.dump(timestamps, open(timestamp_fname, 'wb'))
+                obj_vals_fname = os.path.join(output_dir, dset_outname_map[dset_name], "%s_%.2f_obj_vals.pkl" % (alloc_type, conf_level))
+                pickle.dump(obj_vals, open(obj_vals_fname, 'wb'))
 
-        if save_with_noise_multiplier:
-            fname_base += ("_%.2f" % noise_multiplier)
+        elif alloc_type == "adv_gesw":
+            delta = conf_level
+            alloc = solve_adv_gesw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_per_group[delta], coi_mask, groups)
 
-        fname_base += "_%d" % seed
+        if mode == "save_alloc":
+            print("Saving allocation", flush=True)
 
-        np.save(fname_base + "_alloc.npy", alloc)
+            fname_base = os.path.join(output_dir, dset_outname_map[dset_name], "%s" % alloc_type)
+
+            if alloc_type.startswith("cvar") or alloc_type.startswith("adv"):
+                fname_base += ("_%.2f" % conf_level)
+
+            if save_with_noise_multiplier:
+                fname_base += ("_%.2f" % noise_multiplier)
+
+            fname_base += "_%d" % seed
+
+            np.save(fname_base + "_alloc.npy", alloc)
 
 
 
