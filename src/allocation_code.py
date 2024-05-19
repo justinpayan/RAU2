@@ -228,11 +228,19 @@ def solve_adv_usw(central_estimate, std_devs, covs_lb, covs_ub, loads, rhs_bd_pe
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_utilitarian_linear(a_l, b_l, ce_l, coi_mask_l,
                                                            rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
-    elif method == "IQP":
-        obj = UtilitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, coi_mask_l)
-        _, group_allocs, _, timestamps, obj_vals = obj.iterative_optimization()
-        # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
-        #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
+    else
+        if method == "IQP":
+            obj = UtilitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, coi_mask_l)
+            _, group_allocs, _, timestamps, obj_vals = obj.iterative_optimization()
+            # group_allocs = utilitarian_ellipsoid_uncertainty(ce_l, covs_lb_l, covs_ub_l, loads,
+            #                                                  sd_l, coi_mask_l, rhs_bd_per_group)
+        elif method == "ProjGD":
+            step_size = 1e-3
+            obj = ComputeUtilitarianQuadraticProj(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads, [s.flatten()**2 for s in sd_l], rhs_bd_per_group, step_size)
+            group_allocs, _, _, timestamps, obj_vals = obj.gradient_descent()
+        elif method == "SubgradAsc":
+            pass
+
 
     # Stitch together group_allocs into a single allocation and return it
     final_alloc = np.zeros_like(central_estimate)
@@ -633,6 +641,273 @@ class UtilitarianAlternation():
         # self.betas = betas
         return allocs, betas
 
+
+
+class ComputeUtilitarianQuadraticProj():
+    def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=1000):
+
+        self.mu_list = mu_list
+        self.Sigma_list = Sigma_list
+        self.rad_list = rad_list
+        self.covs_lb_list = covs_lb_l
+        self.covs_ub_list = covs_ub_l
+        self.coi_mask_list = coi_mask_l
+        self.loads = loads
+        self.step_size = step_size
+        self.n_iter = n_iter
+        self.timestamps = []
+        self.objective_vals = []
+
+        self.eta = .1
+
+        self.ngroups = len(self.mu_list)
+        self.nA_list = []
+        self.nI_list = []
+        for idx in range(self.ngroups):
+
+            nA = self.mu_list[idx].shape[0]
+            nI = self.mu_list[idx].shape[1]
+            self.nA_list.append(nA)
+            self.nI_list.append(nI)
+
+        self.beta_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
+        self.A_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
+
+        self.lamda = np.zeros(self.ngroups)
+        self.convert_to_tensors()
+
+
+    def convert_to_tensors(self):
+        self.mu_tl = []
+        self.A_tl = []
+        self.beta_tns = []
+        self.Lamda_tns = None
+        self.sigma_tns = []
+        self.coi_tns = []
+        self.Lamda_tns = torch.rand(self.ngroups,requires_grad=True)
+
+        params=[]
+        params.append(self.Lamda_tns)
+
+        for gdx in range(self.ngroups):
+            self.mu_tl.append(torch.Tensor(self.mu_list[gdx]))
+            self.beta_tns.append(torch.rand(self.beta_list[gdx].shape,requires_grad=True))
+            self.A_tl.append(torch.rand(self.A_list[gdx].shape, requires_grad=True))
+            self.sigma_tns.append(torch.Tensor(np.diag(self.Sigma_list[gdx].flatten())))
+            self.coi_tns.append(torch.Tensor(self.coi_mask_list[gdx]))
+            params.append(self.A_tl[gdx])
+            params.append(self.beta_tns[gdx])
+
+        self.optimizer = torch.optim.Adam(params, lr=self.step_size)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
+
+    def welfare(self):
+        welfares = []
+        for gdx in range(self.ngroups):
+            Ag = self.A_tl[gdx].flatten()
+            Bg = self.beta_tns[gdx].flatten()
+            Vg = self.mu_tl[gdx].flatten()
+            Sigma_g = self.sigma_tns[gdx]
+            Cg = self.coi_tns[gdx].flatten()
+            term1 = torch.sum((Cg*(Ag - Bg)).flatten() * Vg.flatten())
+            temp = (Cg*(Ag - Bg)).reshape(-1, 1)
+            term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
+            term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx] ** 2
+            w = (term1 + term2 + term3)
+            welfares.append(w.detach().cpu().numpy())
+
+        return welfares
+
+    def func(self):
+
+        # term_sum = 0.0
+        terms = torch.zeros(self.ngroups)
+        for gdx in range(self.ngroups):
+
+            Ag = self.A_tl[gdx].flatten()
+            Bg = self.beta_tns[gdx].flatten()
+            Vg = self.mu_tl[gdx].flatten()
+            Cg = self.coi_tns[gdx].flatten()
+            Sigma_g = self.sigma_tns[gdx]
+            term1 = torch.sum((Cg*(Ag - Bg)).flatten()*Vg.flatten())
+            temp = (Cg*(Ag-Bg)).reshape(-1,1)
+            print(temp)
+            term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
+            term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]
+            print(term1, term2, term3)
+            # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
+            # print(term)
+            # term_sum = term_sum + term
+            terms[gdx] += term1+term2[0,0]+term3
+            print()
+        return -1*torch.sum(terms)
+        # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
+        # return -soft_min
+
+
+    def gradient_descent(self):
+        loss_BGD = []
+
+        start_time = time.time()
+
+        for i in range(self.n_iter):
+            loss = self.func()
+            print(f"Iter {i} Loss {loss}")
+            # storing the calculated loss in a list
+            loss_BGD.append(loss.item())
+            # backward pass for computing the gradients of the loss w.r.t to learnable parameters
+            loss.backward()
+            self.optimizer.step()
+            for idx in range(self.ngroups):
+                self.A_tl[idx].grad.data.zero_()
+                self.beta_tns[idx].grad.data.zero_()
+            self.Lamda_tns.grad.data.zero_()
+            projected_A, projected_beta, projected_lamda = self.projection(self.A_tl,self.beta_tns,self.Lamda_tns)
+            for idx in range(self.ngroups):
+                self.A_tl[idx].data = torch.Tensor(projected_A[idx])
+                self.beta_tns[idx].data = torch.Tensor(projected_beta[idx])
+            self.Lamda_tns.data = torch.Tensor(projected_lamda)
+            welfares = self.welfare()
+            sum_w = np.sum(welfares)
+            self.scheduler.step(sum_w)
+
+            self.timestamps.append(time.time() - start_time)
+            self.objective_vals.append(sum_w)
+
+            print(f'Iter: {i}, \tLoss: {loss.item()} Worst welfare: {worst_w} Welfare sum: {sum_w}')
+
+
+        return self.convert_to_numpy(self.A_tl), self.beta_tns, self.Lamda_tns, self.timestamps, self.objective_vals
+
+
+
+    def convert_to_numpy(self, X_list):
+        n = len(X_list)
+        X_new = []
+        for idx in range(n):
+            if isinstance(X_list[idx], np.ndarray)==False:
+                X_new.append(X_list[idx].detach().cpu().numpy())
+            else:
+                X_new.append(X_list[idx])
+        return X_new
+
+    def projection(self,A_vals, beta_vals, lamda_vals):
+
+        beta_vals = self.convert_to_numpy(beta_vals)
+        A_vals = self.convert_to_numpy(A_vals)
+        if isinstance(lamda_vals, np.ndarray)==False:
+            lamda_vals = lamda_vals.detach().cpu().numpy()
+        model = gp.Model()
+
+
+        beta_diffs=[]
+        A_diffs=[]
+        beta_abss=[]
+        A_abss=[]
+        betas=[]
+        As=[]
+        g = len(A_vals)
+        lamdas = model.addMVar(len(lamda_vals.flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                            name='lamda')
+        lamdas_diff = model.addMVar(len(lamda_vals.flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY,
+                                  vtype=gp.GRB.CONTINUOUS,
+                                  name='lamda_g')
+
+        lamdas_abs = model.addMVar(len(lamda_vals.flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                 name='lamda_g')
+
+        m = len(lamda_vals)
+
+        for idx in range(m):
+            model.addConstr(lamdas_diff[idx] == lamda_vals[idx] - lamdas[idx], name='c' +str(idx + 1))
+            model.addConstr(lamdas_abs[idx] == gp.abs_(lamdas_diff[idx]), name='c' +  str(idx + 1))
+
+        for i in range(g):
+
+            beta_g = model.addMVar(len(beta_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name='beta_g' + str(i))
+            A_g = model.addMVar(len(A_vals[i].flatten()), lb=0.0, ub=1, vtype=gp.GRB.CONTINUOUS, name='A_g' + str(i))
+
+            beta_diff = model.addMVar(len(beta_vals[i].flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                name='beta_g' + str(i))
+            A_diff = model.addMVar(len(A_vals[i].flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                name='A_g' + str(i))
+
+            beta_abs = model.addMVar(len(beta_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                   name='beta_g' + str(i))
+            A_abs = model.addMVar(len(A_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                   name='A_g' + str(i))
+
+
+            mn = len(A_vals[i].flatten())
+            betas.append(beta_g)
+            As.append(A_g)
+            beta_diffs.append(beta_diff)
+            A_diffs.append(A_diff)
+
+
+            Aval = A_vals[i].flatten()
+            for jdx in range(mn):
+                model.addConstr(beta_diff[jdx]==beta_vals[i].flatten()[jdx]-beta_g[jdx],name='c'+ str(i) + str(jdx+1))
+                model.addConstr(beta_abs[jdx]==gp.abs_(beta_diff[jdx]),name='c'+ str(i) + str(jdx+1))
+                model.addConstr(A_diff[jdx] == Aval[jdx] - A_g[jdx], name='c1' + str(i) + str(jdx))
+                model.addConstr(A_abs[jdx] == gp.abs_(A_diff[jdx]), name='c1' + str(i) + str(jdx))
+
+
+            n_agents = self.A_list[i].shape[0]
+            n_items = self.A_list[i].shape[1]
+            covs_lb = self.covs_lb_list[i].flatten()
+            covs_ub = self.covs_ub_list[i].flatten()
+            C = self.coi_mask_list[i].flatten()
+
+            model.addConstrs(A_g[i] <= C[i] for i in range(mn))
+
+            model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
+                             range(n_items))
+            model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
+                             range(n_items))
+
+            beta_abss.append(beta_abs)
+            A_abss.append(A_abs)
+
+        load_sum = model.addMVar(self.loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
+
+        model.addConstrs(load_sum[idx] == gp.quicksum(
+            As[gdx][idx * self.mu_list[gdx].shape[1]:(idx + 1) * (self.mu_list[gdx].shape[1])].sum() for gdx in
+            range(self.ngroups)) for
+                     idx in range(self.loads.size))
+        total_agents = self.loads.size
+        model.addConstrs(load_sum[idx] <= self.loads[idx] for idx in range(total_agents))
+
+        model.setObjective(gp.quicksum(
+            lamdas_abs[jdx]**2 + gp.quicksum(A_abss[jdx][idx]**2+ beta_abss[jdx][idx]**2 for idx in range(len(self.A_list[jdx].flatten()))) for jdx in range(g)), gp.GRB.MINIMIZE)
+        model.setParam('OutputFlag', 0)
+
+
+        model.optimize()
+        projected_As=[]
+        projected_betas=[]
+        projected_lamda = None
+
+        for idx in range(g):
+            A = np.array(As[idx].X).reshape(A_vals[idx].shape)
+            beta = np.array(betas[idx].X).reshape(beta_vals[idx].shape)
+            projected_lamda = np.array(lamdas.X)
+            projected_As.append(A)
+            projected_betas.append(beta)
+        return projected_As, projected_betas, projected_lamda
+
+
+    def compute_gradient(self):
+
+        output = self.func()
+        output.backward()
+        A_grads = []
+        beta_grads = []
+        for gdx in range(self.ngroups):
+            A_grads.append(self.A_tl[gdx].grad)
+            beta_grads.append(self.beta_tns[gdx].grad)
+            lamda_grads = self.lamda_tns.grad
+        return A_grads, beta_grads, lamda_grads
 
 
 def check_ellipsoid(Sigma, mu, x, rsquared):
@@ -1076,265 +1351,266 @@ class ComputeGroupEgalitarianQuadratic():
             projected_betas.append(beta)
         return projected_As, projected_betas, projected_lamda
 
-# class ComputeGroupEgalitarianQuadratic():
-#     def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=1000):
-#
-#         self.mu_list = mu_list
-#         self.Sigma_list = Sigma_list
-#         self.rad_list = rad_list
-#         self.covs_lb_list = covs_lb_l
-#         self.covs_ub_list = covs_ub_l
-#         self.coi_mask_list = coi_mask_l
-#         self.loads = loads
-#         self.step_size = step_size
-#         self.n_iter = n_iter
-#
-#         self.eta = .1
-#
-#         self.ngroups = len(self.mu_list)
-#         self.nA_list = []
-#         self.nI_list = []
-#         for idx in range(self.ngroups):
-#
-#             nA = self.mu_list[idx].shape[0]
-#             nI = self.mu_list[idx].shape[1]
-#             self.nA_list.append(nA)
-#             self.nI_list.append(nI)
-#
-#         self.beta_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
-#         self.A_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
-#
-#         self.lamda = np.zeros(self.ngroups)
-#         self.convert_to_tensors()
-#
-#
-#     def convert_to_tensors(self):
-#         self.mu_tl = []
-#         self.A_tl = []
-#         self.beta_tns = []
-#         self.Lamda_tns = None
-#         self.sigma_tns = []
-#         self.coi_tns = []
-#         self.Lamda_tns = torch.rand(self.ngroups,requires_grad=True)
-#
-#         params=[]
-#         params.append(self.Lamda_tns)
-#
-#         for gdx in range(self.ngroups):
-#             self.mu_tl.append(torch.Tensor(self.mu_list[gdx]))
-#             self.beta_tns.append(torch.rand(self.beta_list[gdx].shape,requires_grad=True))
-#             self.A_tl.append(torch.rand(self.A_list[gdx].shape, requires_grad=True))
-#             self.sigma_tns.append(torch.Tensor(np.diag(self.Sigma_list[gdx].flatten())))
-#             self.coi_tns.append(torch.Tensor(self.coi_mask_list[gdx]))
-#             params.append(self.A_tl[gdx])
-#             params.append(self.beta_tns[gdx])
-#
-#         self.optimizer = torch.optim.Adam(params, lr=self.step_size)
-#         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
-#
-#     def welfare(self):
-#         welfares = []
-#         for gdx in range(self.ngroups):
-#             Ag = self.A_tl[gdx].flatten()
-#             Bg = self.beta_tns[gdx].flatten()
-#             Vg = self.mu_tl[gdx].flatten()
-#             Sigma_g = self.sigma_tns[gdx]
-#             Cg = self.coi_tns[gdx].flatten()
-#             term1 = torch.sum((Cg*(Ag - Bg)).flatten() * Vg.flatten())
-#             temp = (Cg*(Ag - Bg)).reshape(-1, 1)
-#             term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
-#             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx] ** 2
-#             w = (term1 + term2 + term3)
-#             welfares.append(w.detach().cpu().numpy())
-#
-#         return welfares
-#
-#     def func(self):
-#
-#         # term_sum = 0.0
-#         terms = torch.zeros(self.ngroups)
-#         for gdx in range(self.ngroups):
-#
-#             Ag = self.A_tl[gdx].flatten()
-#             Bg = self.beta_tns[gdx].flatten()
-#             Vg = self.mu_tl[gdx].flatten()
-#             Cg = self.coi_tns[gdx].flatten()
-#             Sigma_g = self.sigma_tns[gdx]
-#             term1 = torch.sum((Cg*(Ag - Bg)).flatten()*Vg.flatten())
-#             temp = (Cg*(Ag-Bg)).reshape(-1,1)
-#             print(temp)
-#             term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
-#             term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]
-#             print(term1, term2, term3)
-#             # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
-#             # print(term)
-#             # term_sum = term_sum + term
-#             terms[gdx] += term1+term2[0,0]+term3
-#             print()
-#         return -1*torch.min(terms)
-#         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
-#         # return -soft_min
-#
-#
-#     def gradient_descent(self):
-#         loss_BGD = []
-#
-#         for i in range(self.n_iter):
-#             loss = self.func()
-#             print(f"Iter {i} Loss {loss}")
-#             # storing the calculated loss in a list
-#             loss_BGD.append(loss.item())
-#             # backward pass for computing the gradients of the loss w.r.t to learnable parameters
-#             loss.backward()
-#             self.optimizer.step()
-#             for idx in range(self.ngroups):
-#
-#                 self.A_tl[idx].grad.data.zero_()
-#                 self.beta_tns[idx].grad.data.zero_()
-#             self.Lamda_tns.grad.data.zero_()
-#             projected_A, projected_beta, projected_lamda = self.projection(self.A_tl,self.beta_tns,self.Lamda_tns)
-#             for idx in range(self.ngroups):
-#                 self.A_tl[idx].data = torch.Tensor(projected_A[idx])
-#                 self.beta_tns[idx].data = torch.Tensor(projected_beta[idx])
-#             self.Lamda_tns.data = torch.Tensor(projected_lamda)
-#             welfares = self.welfare()
-#             worst_w = np.min(welfares)
-#             sum_w = np.sum(welfares)
-#             self.scheduler.step(worst_w)
-#             print(f'Iter: {i}, \tLoss: {loss.item()} Worst welfare: {worst_w} Welfare sum: {sum_w}')
-#
-#
-#         return self.A_tl, self.beta_tns, self.Lamda_tns
-#
-#
-#
-#     def convert_to_numpy(self, X_list):
-#         n = len(X_list)
-#         X_new = []
-#         for idx in range(n):
-#             if isinstance(X_list[idx], np.ndarray)==False:
-#                 X_new.append(X_list[idx].detach().cpu().numpy())
-#             else:
-#                 X_new.append(X_list[idx])
-#         return X_new
-#
-#     def projection(self,A_vals, beta_vals, lamda_vals):
-#
-#         beta_vals = self.convert_to_numpy(beta_vals)
-#         A_vals = self.convert_to_numpy(A_vals)
-#         if isinstance(lamda_vals, np.ndarray)==False:
-#             lamda_vals = lamda_vals.detach().cpu().numpy()
-#         model = gp.Model()
-#
-#
-#         beta_diffs=[]
-#         A_diffs=[]
-#         beta_abss=[]
-#         A_abss=[]
-#         betas=[]
-#         As=[]
-#         g = len(A_vals)
-#         lamdas = model.addMVar(len(lamda_vals.flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
-#                             name='lamda')
-#         lamdas_diff = model.addMVar(len(lamda_vals.flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY,
-#                                   vtype=gp.GRB.CONTINUOUS,
-#                                   name='lamda_g')
-#
-#         lamdas_abs = model.addMVar(len(lamda_vals.flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
-#                                  name='lamda_g')
-#
-#         m = len(lamda_vals)
-#
-#         for idx in range(m):
-#             model.addConstr(lamdas_diff[idx] == lamda_vals[idx] - lamdas[idx], name='c' +str(idx + 1))
-#             model.addConstr(lamdas_abs[idx] == gp.abs_(lamdas_diff[idx]), name='c' +  str(idx + 1))
-#
-#         for i in range(g):
-#
-#             beta_g = model.addMVar(len(beta_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name='beta_g' + str(i))
-#             A_g = model.addMVar(len(A_vals[i].flatten()), lb=0.0, ub=1, vtype=gp.GRB.CONTINUOUS, name='A_g' + str(i))
-#
-#             beta_diff = model.addMVar(len(beta_vals[i].flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
-#                                 name='beta_g' + str(i))
-#             A_diff = model.addMVar(len(A_vals[i].flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
-#                                 name='A_g' + str(i))
-#
-#             beta_abs = model.addMVar(len(beta_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
-#                                    name='beta_g' + str(i))
-#             A_abs = model.addMVar(len(A_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
-#                                    name='A_g' + str(i))
-#
-#
-#             mn = len(A_vals[i].flatten())
-#             betas.append(beta_g)
-#             As.append(A_g)
-#             beta_diffs.append(beta_diff)
-#             A_diffs.append(A_diff)
-#
-#
-#             Aval = A_vals[i].flatten()
-#             for jdx in range(mn):
-#                 model.addConstr(beta_diff[jdx]==beta_vals[i].flatten()[jdx]-beta_g[jdx],name='c'+ str(i) + str(jdx+1))
-#                 model.addConstr(beta_abs[jdx]==gp.abs_(beta_diff[jdx]),name='c'+ str(i) + str(jdx+1))
-#                 model.addConstr(A_diff[jdx] == Aval[jdx] - A_g[jdx], name='c1' + str(i) + str(jdx))
-#                 model.addConstr(A_abs[jdx] == gp.abs_(A_diff[jdx]), name='c1' + str(i) + str(jdx))
-#
-#
-#             n_agents = self.A_list[i].shape[0]
-#             n_items = self.A_list[i].shape[1]
-#             covs_lb = self.covs_lb_list[i].flatten()
-#             covs_ub = self.covs_ub_list[i].flatten()
-#             C = self.coi_mask_list[i].flatten()
-#
-#             model.addConstrs(A_g[i] <= C[i] for i in range(mn))
-#
-#             model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
-#                              range(n_items))
-#             model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
-#                              range(n_items))
-#
-#             beta_abss.append(beta_abs)
-#             A_abss.append(A_abs)
-#
-#         load_sum = model.addMVar(self.loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
-#
-#         model.addConstrs(load_sum[idx] == gp.quicksum(
-#             As[gdx][idx * self.mu_list[gdx].shape[1]:(idx + 1) * (self.mu_list[gdx].shape[1])].sum() for gdx in
-#             range(self.ngroups)) for
-#                      idx in range(self.loads.size))
-#         total_agents = self.loads.size
-#         model.addConstrs(load_sum[idx] <= self.loads[idx] for idx in range(total_agents))
-#
-#         model.setObjective(gp.quicksum(
-#             lamdas_abs[jdx]**2 + gp.quicksum(A_abss[jdx][idx]**2+ beta_abss[jdx][idx]**2 for idx in range(len(self.A_list[jdx].flatten()))) for jdx in range(g)), gp.GRB.MINIMIZE)
-#         model.setParam('OutputFlag', 0)
-#
-#
-#         model.optimize()
-#         projected_As=[]
-#         projected_betas=[]
-#         projected_lamda = None
-#
-#         for idx in range(g):
-#             A = np.array(As[idx].X).reshape(A_vals[idx].shape)
-#             beta = np.array(betas[idx].X).reshape(beta_vals[idx].shape)
-#             projected_lamda = np.array(lamdas.X)
-#             projected_As.append(A)
-#             projected_betas.append(beta)
-#         return projected_As, projected_betas, projected_lamda
-#
-#
-#     def compute_gradient(self):
-#
-#         output = self.func()
-#         output.backward()
-#         A_grads = []
-#         beta_grads = []
-#         for gdx in range(self.ngroups):
-#             A_grads.append(self.A_tl[gdx].grad)
-#             beta_grads.append(self.beta_tns[gdx].grad)
-#             lamda_grads = self.lamda_tns.grad
-#         return A_grads, beta_grads, lamda_grads
+class ComputeGroupEgalitarianQuadraticProj():
+    def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=1000):
+
+        self.mu_list = mu_list
+        self.Sigma_list = Sigma_list
+        self.rad_list = rad_list
+        self.covs_lb_list = covs_lb_l
+        self.covs_ub_list = covs_ub_l
+        self.coi_mask_list = coi_mask_l
+        self.loads = loads
+        self.step_size = step_size
+        self.n_iter = n_iter
+
+        self.eta = .1
+
+        self.ngroups = len(self.mu_list)
+        self.nA_list = []
+        self.nI_list = []
+        for idx in range(self.ngroups):
+
+            nA = self.mu_list[idx].shape[0]
+            nI = self.mu_list[idx].shape[1]
+            self.nA_list.append(nA)
+            self.nI_list.append(nI)
+
+        self.beta_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
+        self.A_list = [torch.zeros(self.mu_list[idx].shape) for idx in range(self.ngroups)]
+
+        self.lamda = np.zeros(self.ngroups)
+        self.convert_to_tensors()
+
+
+    def convert_to_tensors(self):
+        self.mu_tl = []
+        self.A_tl = []
+        self.beta_tns = []
+        self.Lamda_tns = None
+        self.sigma_tns = []
+        self.coi_tns = []
+        self.Lamda_tns = torch.rand(self.ngroups,requires_grad=True)
+
+        params=[]
+        params.append(self.Lamda_tns)
+
+        for gdx in range(self.ngroups):
+            self.mu_tl.append(torch.Tensor(self.mu_list[gdx]))
+            self.beta_tns.append(torch.rand(self.beta_list[gdx].shape,requires_grad=True))
+            self.A_tl.append(torch.rand(self.A_list[gdx].shape, requires_grad=True))
+            self.sigma_tns.append(torch.Tensor(np.diag(self.Sigma_list[gdx].flatten())))
+            self.coi_tns.append(torch.Tensor(self.coi_mask_list[gdx]))
+            params.append(self.A_tl[gdx])
+            params.append(self.beta_tns[gdx])
+
+        self.optimizer = torch.optim.Adam(params, lr=self.step_size)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
+
+    def welfare(self):
+        welfares = []
+        for gdx in range(self.ngroups):
+            Ag = self.A_tl[gdx].flatten()
+            Bg = self.beta_tns[gdx].flatten()
+            Vg = self.mu_tl[gdx].flatten()
+            Sigma_g = self.sigma_tns[gdx]
+            Cg = self.coi_tns[gdx].flatten()
+            term1 = torch.sum((Cg*(Ag - Bg)).flatten() * Vg.flatten())
+            temp = (Cg*(Ag - Bg)).reshape(-1, 1)
+            term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
+            term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx] ** 2
+            w = (term1 + term2 + term3)
+            welfares.append(w.detach().cpu().numpy())
+
+        return welfares
+
+    def func(self):
+
+        # term_sum = 0.0
+        terms = torch.zeros(self.ngroups)
+        for gdx in range(self.ngroups):
+
+            Ag = self.A_tl[gdx].flatten()
+            Bg = self.beta_tns[gdx].flatten()
+            Vg = self.mu_tl[gdx].flatten()
+            Cg = self.coi_tns[gdx].flatten()
+            Sigma_g = self.sigma_tns[gdx]
+            term1 = torch.sum((Cg*(Ag - Bg)).flatten()*Vg.flatten())
+            temp = (Cg*(Ag-Bg)).reshape(-1,1)
+            print(temp)
+            term2 = -(torch.mm(torch.mm(temp.t(),Sigma_g), temp))/(4*(self.Lamda_tns[gdx]+1e-3))
+            term3 = -self.Lamda_tns[gdx]*self.rad_list[gdx]
+            print(term1, term2, term3)
+            # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
+            # print(term)
+            # term_sum = term_sum + term
+            terms[gdx] += term1+term2[0,0]+term3
+            print()
+        return -1*torch.min(terms)
+        # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
+        # return -soft_min
+
+
+    def gradient_descent(self):
+        loss_BGD = []
+
+        for i in range(self.n_iter):
+            loss = self.func()
+            print(f"Iter {i} Loss {loss}")
+            # storing the calculated loss in a list
+            loss_BGD.append(loss.item())
+            # backward pass for computing the gradients of the loss w.r.t to learnable parameters
+            loss.backward()
+            self.optimizer.step()
+            for idx in range(self.ngroups):
+
+                self.A_tl[idx].grad.data.zero_()
+                self.beta_tns[idx].grad.data.zero_()
+            self.Lamda_tns.grad.data.zero_()
+            projected_A, projected_beta, projected_lamda = self.projection(self.A_tl,self.beta_tns,self.Lamda_tns)
+            for idx in range(self.ngroups):
+                self.A_tl[idx].data = torch.Tensor(projected_A[idx])
+                self.beta_tns[idx].data = torch.Tensor(projected_beta[idx])
+            self.Lamda_tns.data = torch.Tensor(projected_lamda)
+            welfares = self.welfare()
+            worst_w = np.min(welfares)
+            sum_w = np.sum(welfares)
+            self.scheduler.step(worst_w)
+            print(f'Iter: {i}, \tLoss: {loss.item()} Worst welfare: {worst_w} Welfare sum: {sum_w}')
+
+
+        return self.A_tl, self.beta_tns, self.Lamda_tns
+
+
+
+    def convert_to_numpy(self, X_list):
+        n = len(X_list)
+        X_new = []
+        for idx in range(n):
+            if isinstance(X_list[idx], np.ndarray)==False:
+                X_new.append(X_list[idx].detach().cpu().numpy())
+            else:
+                X_new.append(X_list[idx])
+        return X_new
+
+    def projection(self,A_vals, beta_vals, lamda_vals):
+
+        beta_vals = self.convert_to_numpy(beta_vals)
+        A_vals = self.convert_to_numpy(A_vals)
+        if isinstance(lamda_vals, np.ndarray)==False:
+            lamda_vals = lamda_vals.detach().cpu().numpy()
+        model = gp.Model()
+
+
+        beta_diffs=[]
+        A_diffs=[]
+        beta_abss=[]
+        A_abss=[]
+        betas=[]
+        As=[]
+        g = len(A_vals)
+        lamdas = model.addMVar(len(lamda_vals.flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                            name='lamda')
+        lamdas_diff = model.addMVar(len(lamda_vals.flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY,
+                                  vtype=gp.GRB.CONTINUOUS,
+                                  name='lamda_g')
+
+        lamdas_abs = model.addMVar(len(lamda_vals.flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                 name='lamda_g')
+
+        m = len(lamda_vals)
+
+        for idx in range(m):
+            model.addConstr(lamdas_diff[idx] == lamda_vals[idx] - lamdas[idx], name='c' +str(idx + 1))
+            model.addConstr(lamdas_abs[idx] == gp.abs_(lamdas_diff[idx]), name='c' +  str(idx + 1))
+
+        for i in range(g):
+
+            beta_g = model.addMVar(len(beta_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name='beta_g' + str(i))
+            A_g = model.addMVar(len(A_vals[i].flatten()), lb=0.0, ub=1, vtype=gp.GRB.CONTINUOUS, name='A_g' + str(i))
+
+            beta_diff = model.addMVar(len(beta_vals[i].flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                name='beta_g' + str(i))
+            A_diff = model.addMVar(len(A_vals[i].flatten()), lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                name='A_g' + str(i))
+
+            beta_abs = model.addMVar(len(beta_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                   name='beta_g' + str(i))
+            A_abs = model.addMVar(len(A_vals[i].flatten()), lb=0.0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                   name='A_g' + str(i))
+
+
+            mn = len(A_vals[i].flatten())
+            betas.append(beta_g)
+            As.append(A_g)
+            beta_diffs.append(beta_diff)
+            A_diffs.append(A_diff)
+
+
+            Aval = A_vals[i].flatten()
+            for jdx in range(mn):
+                model.addConstr(beta_diff[jdx]==beta_vals[i].flatten()[jdx]-beta_g[jdx],name='c'+ str(i) + str(jdx+1))
+                model.addConstr(beta_abs[jdx]==gp.abs_(beta_diff[jdx]),name='c'+ str(i) + str(jdx+1))
+                model.addConstr(A_diff[jdx] == Aval[jdx] - A_g[jdx], name='c1' + str(i) + str(jdx))
+                model.addConstr(A_abs[jdx] == gp.abs_(A_diff[jdx]), name='c1' + str(i) + str(jdx))
+
+
+            n_agents = self.A_list[i].shape[0]
+            n_items = self.A_list[i].shape[1]
+            covs_lb = self.covs_lb_list[i].flatten()
+            covs_ub = self.covs_ub_list[i].flatten()
+            C = self.coi_mask_list[i].flatten()
+
+            model.addConstrs(A_g[i] <= C[i] for i in range(mn))
+
+            model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
+                             range(n_items))
+            model.addConstrs(gp.quicksum(A_g[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
+                             range(n_items))
+
+            beta_abss.append(beta_abs)
+            A_abss.append(A_abs)
+
+        load_sum = model.addMVar(self.loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS, name='load_sum')
+
+        model.addConstrs(load_sum[idx] == gp.quicksum(
+            As[gdx][idx * self.mu_list[gdx].shape[1]:(idx + 1) * (self.mu_list[gdx].shape[1])].sum() for gdx in
+            range(self.ngroups)) for
+                     idx in range(self.loads.size))
+        total_agents = self.loads.size
+        model.addConstrs(load_sum[idx] <= self.loads[idx] for idx in range(total_agents))
+
+        model.setObjective(gp.quicksum(
+            lamdas_abs[jdx]**2 + gp.quicksum(A_abss[jdx][idx]**2+ beta_abss[jdx][idx]**2 for idx in range(len(self.A_list[jdx].flatten()))) for jdx in range(g)), gp.GRB.MINIMIZE)
+        model.setParam('OutputFlag', 0)
+
+
+        model.optimize()
+        projected_As=[]
+        projected_betas=[]
+        projected_lamda = None
+
+        for idx in range(g):
+            A = np.array(As[idx].X).reshape(A_vals[idx].shape)
+            beta = np.array(betas[idx].X).reshape(beta_vals[idx].shape)
+            projected_lamda = np.array(lamdas.X)
+            projected_As.append(A)
+            projected_betas.append(beta)
+        return projected_As, projected_betas, projected_lamda
+
+
+    def compute_gradient(self):
+
+        output = self.func()
+        output.backward()
+        A_grads = []
+        beta_grads = []
+        for gdx in range(self.ngroups):
+            A_grads.append(self.A_tl[gdx].grad)
+            beta_grads.append(self.beta_tns[gdx].grad)
+            lamda_grads = self.lamda_tns.grad
+        return A_grads, beta_grads, lamda_grads
+
 def run():
     n = np.random.randint(10, 100)
 

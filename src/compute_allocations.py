@@ -18,8 +18,10 @@ dset_outname_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3",
                  "ads": "Advertising", "cs": "cs"}
 
 
-def load_dset(dset_name, data_dir, seed):
+def load_dset(dset_name, data_dir, seed, mode='compute_alloc'):
     sample_frac = .8
+    if mode == "time":
+        sample_frac = .1
     rng = np.random.default_rng(seed=seed)
 
     if dset_name.startswith("aamas"):
@@ -166,7 +168,7 @@ def main(args):
 
     fname = fname_base + "_alloc.npy"
     if not os.path.exists(fname):
-        central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed)
+        central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed, mode)
 
         print("Loaded dataset %s, computing %s allocation" % (dset_name, alloc_type), flush=True)
 
