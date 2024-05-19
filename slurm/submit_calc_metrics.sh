@@ -5,5 +5,6 @@ module load gurobi/1001
 DSET_NAME=$1
 ALLOC_TYPE=$2
 CONF_LEVEL=$3
+SEED=$4
 
-python ../src/calc_metrics.py --dset_name $DSET_NAME --alloc_type $ALLOC_TYPE --conf_level $CONF_LEVEL
+python ../src/calc_metrics.py --dset_name $DSET_NAME --alloc_type $ALLOC_TYPE --conf_level $CONF_LEVEL --seed $SEED

@@ -18,7 +18,9 @@ dset_outname_map = {"aamas1": "AAMAS1", "aamas2": "AAMAS2", "aamas3": "AAMAS3",
                  "ads": "Advertising", "cs": "cs"}
 
 
-def load_dset(dset_name, data_dir):
+def load_dset(dset_name, data_dir, seed):
+    sample_frac = .8
+    rng = np.random.default_rng(seed=seed)
 
     if dset_name.startswith("aamas"):
         idx = int(dset_name[-1])
@@ -26,6 +28,17 @@ def load_dset(dset_name, data_dir):
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
         central_estimate = np.load(os.path.join(data_dir, "AAMAS", "prob_up_%d.npy" % idx))
         std_devs = None
+
+        nrevs = central_estimate.shape[0]
+        npaps = central_estimate.shape[1]
+
+        chosen_revs = rng.choice(range(nrevs), int(sample_frac*nrevs))
+        chosen_paps = rng.choice(range(npaps), int(sample_frac*npaps))
+
+        central_estimate = central_estimate[chosen_revs, :][:, chosen_paps]
+        coi_mask = coi_mask[chosen_revs, :][:, chosen_paps]
+        groups = groups[chosen_paps]
+
 
         cs = [3, 2, 2]
         ls = [15, 15, 10]
@@ -41,6 +54,17 @@ def load_dset(dset_name, data_dir):
         std_devs = np.load(os.path.join(data_dir, "AAMAS", "zeta_matrix_%d.npy" % idx))
         groups = np.load(os.path.join(data_dir, "AAMAS", "groups_%d.npy" % idx))
         coi_mask = np.load(os.path.join(data_dir, "AAMAS", "coi_mask_%d.npy" % idx))
+
+        nrevs = central_estimate.shape[0]
+        npaps = central_estimate.shape[1]
+
+        chosen_revs = rng.choice(range(nrevs), int(sample_frac * nrevs))
+        chosen_paps = rng.choice(range(npaps), int(sample_frac * npaps))
+
+        central_estimate = central_estimate[chosen_revs, :][:, chosen_paps]
+        coi_mask = coi_mask[chosen_revs, :][:, chosen_paps]
+        groups = groups[chosen_paps]
+        std_devs = std_devs[chosen_revs, :][:, chosen_paps]
 
         cs = [3, 2, 2]
         ls = [15, 15, 10]
@@ -58,35 +82,35 @@ def load_dset(dset_name, data_dir):
                 c_value = np.sum(coi_mask[:, gmask])
                 rhs_bd_per_group[delta].append(np.sqrt(chi2.ppf(1-(delta/ngroups), df=c_value)))
 
-    elif dset_name == "ads":
-        central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
-        std_devs = np.load(os.path.join(data_dir, "Advertising", "sigs.npy"))
-        coi_mask = np.load(os.path.join(data_dir, "Advertising", "coi_mask.npy"))
-
-        covs_lb = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
-        covs_ub = 100*np.ones(central_estimate.shape[1])
-        loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
-        groups = np.load(os.path.join(data_dir, "Advertising", "groups.npy"))
-
-        ngroups = len(set(groups))
-        rhs_bd_per_group = {}
-        for delta in [.3, .2, .1, .05]:
-            rhs_bd_per_group[delta] = []
-            for gidx in range(ngroups):
-                gmask = np.where(groups == gidx)[0]
-                c_value = np.sum(coi_mask[:, gmask])
-                rhs_bd_per_group[delta].append(chi2.ppf(1 - (delta / ngroups), df=c_value))
-
-    elif dset_name == "cs":
-        rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "delta_to_normal_bd.pkl"), 'rb'))
-        central_estimate = (np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))+5)/6
-        coi_mask = np.load(os.path.join(data_dir, "cs", "coi_mask.npy"))
-
-        covs_lb = 2 * np.ones(central_estimate.shape[1])
-        covs_ub = 2 * np.ones(central_estimate.shape[1])
-        loads = 20 * np.ones(central_estimate.shape[0])
-        groups = np.load(os.path.join(data_dir, "cs", "groups.npy"))
-        std_devs = None
+    # elif dset_name == "ads":
+    #     central_estimate = np.load(os.path.join(data_dir, "Advertising", "mus.npy"))
+    #     std_devs = np.load(os.path.join(data_dir, "Advertising", "sigs.npy"))
+    #     coi_mask = np.load(os.path.join(data_dir, "Advertising", "coi_mask.npy"))
+    #
+    #     covs_lb = np.zeros(central_estimate.shape[1]) # ad campaigns have no lower bounds
+    #     covs_ub = 100*np.ones(central_estimate.shape[1])
+    #     loads = np.ones(central_estimate.shape[0]) # Each user impression can only have 1 ad campaign
+    #     groups = np.load(os.path.join(data_dir, "Advertising", "groups.npy"))
+    #
+    #     ngroups = len(set(groups))
+    #     rhs_bd_per_group = {}
+    #     for delta in [.3, .2, .1, .05]:
+    #         rhs_bd_per_group[delta] = []
+    #         for gidx in range(ngroups):
+    #             gmask = np.where(groups == gidx)[0]
+    #             c_value = np.sum(coi_mask[:, gmask])
+    #             rhs_bd_per_group[delta].append(chi2.ppf(1 - (delta / ngroups), df=c_value))
+    #
+    # elif dset_name == "cs":
+    #     rhs_bd_per_group = pickle.load(open(os.path.join(data_dir, "cs", "delta_to_normal_bd.pkl"), 'rb'))
+    #     central_estimate = (np.load(os.path.join(data_dir, "cs", "asst_scores.npy"))+5)/6
+    #     coi_mask = np.load(os.path.join(data_dir, "cs", "coi_mask.npy"))
+    #
+    #     covs_lb = 2 * np.ones(central_estimate.shape[1])
+    #     covs_ub = 2 * np.ones(central_estimate.shape[1])
+    #     loads = 20 * np.ones(central_estimate.shape[0])
+    #     groups = np.load(os.path.join(data_dir, "cs", "groups.npy"))
+    #     std_devs = None
 
     covs_lb = np.minimum(covs_lb, np.sum(coi_mask, axis=0))
 
@@ -123,12 +147,14 @@ def main(args):
     mode = args.mode
     noise_multiplier = args.noise_multiplier
     save_with_noise_multiplier = args.save_with_noise_multiplier
+    n_samples = args.n_samples
+    seed = args.seed
 
     base_dir = "/mnt/nfs/scratch1/jpayan/RAU2"
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir)
+    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed)
 
     print("Loaded dataset %s, computing %s allocation" % (dset_name, alloc_type), flush=True)
 
@@ -140,7 +166,7 @@ def main(args):
         alloc = solve_gesw(central_estimate, covs_lb, covs_ub, loads, groups, coi_mask)
 
     if alloc_type.startswith("cvar"):
-        value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=200, noise_multiplier=noise_multiplier, seed=0, paired=True)
+        value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=n_samples, noise_multiplier=noise_multiplier, seed=seed, paired=True)
         print(value_samples[10][10, 10])
 
     if alloc_type == "cvar_usw" or alloc_type == "cvar_gesw":
@@ -180,6 +206,8 @@ def main(args):
         if save_with_noise_multiplier:
             fname_base += ("_%.2f" % noise_multiplier)
 
+        fname_base += "_%d" % seed
+
         np.save(fname_base + "_alloc.npy", alloc)
 
 
@@ -193,6 +221,8 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default='save_alloc')
     parser.add_argument("--noise_multiplier", type=float, default=1.0)
     parser.add_argument("--save_with_noise_multiplier", type=int, default=0)
+    parser.add_argument("--n_samples", type=int, default=200)
+    parser.add_argument("--seed", type=int, default=31345)
 
 
     args = parser.parse_args()

@@ -14,14 +14,15 @@ def main(args):
     conf_level = args.conf_level
     noise_multiplier = args.noise_multiplier
     save_with_noise_multiplier = args.save_with_noise_multiplier
+    seed = args.seed
 
     base_dir = "/mnt/nfs/scratch1/jpayan/RAU2"
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir)
+    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed)
 
-    print("Loaded dataset %s, loading %s allocation. Conf level %.2f" % (dset_name, alloc_type, conf_level), flush=True)
+    print("Loaded dataset %s, loading %s allocation. Conf level %.2f. Seed %d" % (dset_name, alloc_type, conf_level, seed), flush=True)
 
     fname_base = os.path.join(output_dir, dset_outname_map[dset_name], "%s" % alloc_type)
 
@@ -31,6 +32,8 @@ def main(args):
         # The allocations based on the expected values dont have any variation across noise multipliers, so we didn't save those fresh.
         if save_with_noise_multiplier:
             fname_base += ("_%.2f" % noise_multiplier)
+
+    fname_base += "_%d" % seed
 
     alloc_fname = fname_base + "_alloc.npy"
 
@@ -56,9 +59,9 @@ def main(args):
     metrics_to_values['adv_usw'] = {}
     metrics_to_values['adv_gesw'] = {}
 
-    conf_levels = [0.01, 0.05, 0.1, 0.2, 0.3]
+    conf_levels = [0.01, 0.3]
 
-    value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=1000, noise_multiplier=noise_multiplier, seed=313)
+    value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=10000, noise_multiplier=noise_multiplier, seed=seed)
     print(value_samples[10][10, 10])
 
 
@@ -99,6 +102,8 @@ def main(args):
     if save_with_noise_multiplier:
         fname_base += ("_%.2f" % noise_multiplier)
 
+    fname_base += "_%d" % seed
+
     metric_fname = fname_base + "_metrics.pkl"
     pickle.dump(metrics_to_values, open(metric_fname, 'wb'))
 
@@ -110,6 +115,7 @@ if __name__ == "__main__":
     parser.add_argument("--conf_level", type=float, default=0.9)
     parser.add_argument("--noise_multiplier", type=float, default=1.0)
     parser.add_argument("--save_with_noise_multiplier", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=31345)
 
     args = parser.parse_args()
     main(args)

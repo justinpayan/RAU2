@@ -4,8 +4,9 @@ DSET_NAME=$1
 ALLOC_TYPE=$2
 CONF_LEVEL=$3
 NOISE_MULTIPLIER=$4
+SEED=$5
 
-JN=cm_noise_${DSET_NAME}_${ALLOC_TYPE}_${NOISE_MULTIPLIER}_${CONF_LEVEL}
+JN=cm_noise_${DSET_NAME}_${ALLOC_TYPE}_${NOISE_MULTIPLIER}_${CONF_LEVEL}_${SEED}
 
 sbatch \
 --job-name=${JN} \
@@ -16,4 +17,4 @@ sbatch \
 --ntasks=1 \
 --time=0-04:00:00 \
 --partition=defq \
-./submit_noise_calc_metrics.sh ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${NOISE_MULTIPLIER}
+./submit_noise_calc_metrics.sh ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${NOISE_MULTIPLIER} ${SEED}
