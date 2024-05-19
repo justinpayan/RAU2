@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 
-DSET_NAME="gauss_aamas1"
 ALLOC_TYPE="adv_usw"
 CONF_LEVEL=0.3
-ADV_USW_METHOD="IQP"
+for DSET_NAME in "gauss_aamas1" "gauss_aamas2" "gauss_aamas3"; do
+  for ADV_METHOD in "IQP" "ProjGD" "SubgradAsc"; do
+    ./timing_exps.sbatch ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${ADV_METHOD}
+  done
+done
 
-./timing_exps.sbatch ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${ADV_USW_METHOD}
+ALLOC_TYPE="adv_gesw"
+CONF_LEVEL=0.3
+for DSET_NAME in "gauss_aamas1" "gauss_aamas2" "gauss_aamas3"; do
+  for ADV_METHOD in "ProjGD" "SubgradAsc"; do
+    ./timing_exps.sbatch ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${ADV_METHOD}
+  done
+done
