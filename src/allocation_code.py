@@ -250,6 +250,8 @@ def solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_p
 def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_per_group, coi_mask, groups, method="ProjGD"):
     a_l, b_l, ce_l, var_l, covs_lb_l, covs_ub_l, coi_mask_l = \
         prep_groups(central_estimate, variances, covs_lb, covs_ub, coi_mask, groups)
+    timestamps = None
+    obj_vals = None
     if variances is None:
         # This is the model based on cross-entropy loss, so we'll use the linear function
         group_allocs, _ = compute_group_egal_linear(a_l, b_l, ce_l, coi_mask_l,
