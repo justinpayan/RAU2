@@ -15,6 +15,6 @@ sbatch \
 --mem=64G \
 --nodes=1 \
 --ntasks=1 \
---time=1-00:00:00 \
---partition=longq \
+--time=00-04:00:00 \
+--partition=defq \
 ./noise_tests.sh ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${NOISE_MULTIPLIER} ${SEED}

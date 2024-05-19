@@ -14,6 +14,6 @@ sbatch \
 --mem=64G \
 --nodes=1 \
 --ntasks=1 \
---time=0-08:00:00 \
+--time=0-04:00:00 \
 --partition=defq \
 ./submit_compute_allocations.sh ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} ${SEED}
