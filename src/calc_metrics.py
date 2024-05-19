@@ -20,7 +20,7 @@ def main(args):
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    central_estimate, std_devs, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed)
+    central_estimate, variances, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed)
 
     print("Loaded dataset %s, loading %s allocation. Conf level %.2f. Seed %d" % (dset_name, alloc_type, conf_level, seed), flush=True)
 
@@ -61,7 +61,7 @@ def main(args):
 
     conf_levels = [0.01, 0.3]
 
-    value_samples = get_samples(central_estimate, std_devs, dset_name, num_samples=10000, noise_multiplier=noise_multiplier, seed=seed)
+    value_samples = get_samples(central_estimate, variances, dset_name, num_samples=10000, noise_multiplier=noise_multiplier, seed=seed)
     print(value_samples[10][10, 10])
 
 
@@ -79,13 +79,13 @@ def main(args):
         if noise_multiplier == 0:
             print("Calculating adv usw", flush=True)
             if dset_name.startswith("gauss"):
-                adv_usw = compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group[delta], groups)
+                adv_usw = compute_adv_usw_ellipsoidal(allocation, central_estimate, variances, rhs_bd_per_group[delta], groups)
             else:
                 adv_usw = compute_adv_usw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 
             print("Calculating adv gesw", flush=True)
             if dset_name.startswith("gauss"):
-                adv_gesw = compute_adv_gesw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group[delta], groups)
+                adv_gesw = compute_adv_gesw_ellipsoidal(allocation, central_estimate, variances, rhs_bd_per_group[delta], groups)
             else:
                 adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 

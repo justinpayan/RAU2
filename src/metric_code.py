@@ -116,7 +116,7 @@ def compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_g
 
     return (a_val-b_val)*gesw.X + b_val
 
-def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group, groups):
+def compute_adv_usw_ellipsoidal(allocation, central_estimate, variances, rhs_bd_per_group, groups):
     print(rhs_bd_per_group)
     m = gp.Model()
 
@@ -130,12 +130,12 @@ def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_p
 
         a = allocation[:, gmask]
         ce = central_estimate[:, gmask]
-        sd = std_devs[:, gmask]
+        var = variances[:, gmask]
         rhs_bd = rhs_bd_per_group[gidx]
 
         v = m.addMVar(ce.shape)
 
-        m.addConstr(((v - ce)*(1/sd)*(v-ce)).sum() <= rhs_bd**2)
+        m.addConstr(((v - ce)*(1/var)*(v-ce)).sum() <= rhs_bd**2)
 
         m.addConstr(v >= 0)
         obj_terms.append((a * v).sum())
@@ -148,7 +148,7 @@ def compute_adv_usw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_p
     return obj.getValue()/allocation.shape[1]
 
 
-def compute_adv_gesw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_per_group, groups):
+def compute_adv_gesw_ellipsoidal(allocation, central_estimate, variances, rhs_bd_per_group, groups):
     m = gp.Model()
 
     ngroups = len(set(groups))
@@ -166,12 +166,12 @@ def compute_adv_gesw_ellipsoidal(allocation, central_estimate, std_devs, rhs_bd_
 
         a = allocation[:, gmask]
         ce = central_estimate[:, gmask]
-        sd = std_devs[:, gmask]
+        var = variances[:, gmask]
         rhs_bd = rhs_bd_per_group[gidx]
 
         v = m.addMVar(ce.shape)
 
-        m.addConstr(((v - ce)*(1/sd)*(v-ce)).sum() <= rhs_bd**2)
+        m.addConstr(((v - ce)*(1/var)*(v-ce)).sum() <= rhs_bd**2)
         m.addConstr(v >= 0)
         m.addConstr(aux_vars[gidx] == (a * v).sum()/grpsize)
 
