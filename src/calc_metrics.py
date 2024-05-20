@@ -78,7 +78,7 @@ def main(args):
         a = 1
         b = 0
 
-        if noise_multiplier == 0:
+        if int(noise_multiplier) == 1:
             print("Calculating adv usw", flush=True)
             if dset_name.startswith("gauss"):
                 adv_usw = compute_adv_usw_ellipsoidal(allocation, central_estimate, variances, rhs_bd_per_group[delta], groups)
