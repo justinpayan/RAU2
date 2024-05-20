@@ -203,18 +203,12 @@ def main(args):
             elif alloc_type == "cvar_gesw":
                 alloc = solve_cvar_gesw(covs_lb, covs_ub, loads, conf_level, value_samples, groups, coi_mask)
 
+        timestamps, obj_vals = None, None
+
         if alloc_type == "adv_usw":
             delta = conf_level
             alloc, timestamps, obj_vals = solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads,
                                                         rhs_bd_per_group[delta], coi_mask, groups, method=adv_method)
-            if mode == "time" and timestamps is not None:
-                print("Saving out timestamps and objective values for iterations")
-                timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name],
-                                               "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
-                pickle.dump(timestamps, open(timestamp_fname, 'wb'))
-                obj_vals_fname = os.path.join(output_dir, dset_outname_map[dset_name],
-                                              "%s_%.2f_obj_vals.pkl" % (alloc_type, conf_level))
-                pickle.dump(obj_vals, open(obj_vals_fname, 'wb'))
 
         elif alloc_type == "adv_gesw":
             delta = conf_level
@@ -223,14 +217,14 @@ def main(args):
             alloc, timestamps, obj_vals = solve_adv_gesw(central_estimate, variances**2, covs_lb, covs_ub, loads,
                                                          rhs_bd_per_group[delta], coi_mask, groups, method=adv_method)
 
-            if mode == "time" and timestamps is not None:
-                print("Saving out timestamps and objective values for iterations")
-                timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name],
-                                               "%s_%.2f_timestamps.pkl" % (alloc_type, conf_level))
-                pickle.dump(timestamps, open(timestamp_fname, 'wb'))
-                obj_vals_fname = os.path.join(output_dir, dset_outname_map[dset_name],
-                                              "%s_%.2f_obj_vals.pkl" % (alloc_type, conf_level))
-                pickle.dump(obj_vals, open(obj_vals_fname, 'wb'))
+        if mode == "time" and timestamps is not None:
+            print("Saving out timestamps and objective values for iterations")
+            timestamp_fname = os.path.join(output_dir, dset_outname_map[dset_name],
+                                           "%s_%s_%.2f_timestamps.pkl" % (alloc_type, adv_method, conf_level))
+            pickle.dump(timestamps, open(timestamp_fname, 'wb'))
+            obj_vals_fname = os.path.join(output_dir, dset_outname_map[dset_name],
+                                          "%s_%s_%.2f_obj_vals.pkl" % (alloc_type, adv_method, conf_level))
+            pickle.dump(obj_vals, open(obj_vals_fname, 'wb'))
 
         if mode == "save_alloc":
             print("Saving allocation", flush=True)
