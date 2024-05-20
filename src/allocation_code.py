@@ -1412,7 +1412,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
         prev_obj_val = obj_val
 
-        rate = 1 / (t + 1)**(1/4)
+        rate = 100 / (t + 1)**(1/4)
         group_allocs[worst_group] += rate*(1-(1/(t+1))) * worst_vs[worst_group]
         group_allocs = [a + rate * (1/(t+1)) * v for a, v in zip(group_allocs, worst_vs_usw)]
 
@@ -1485,17 +1485,17 @@ def run():
 
     rad_list = [rsquared for x in range(ngroups)]
 
-    Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
+    # Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
 
-    # Sigma_list = [np.random.uniform(0.1, 1, mu_list[idx].shape) for idx in range(ngroups)]
+    Sigma_list = [np.random.uniform(0.1, 1, mu_list[idx].shape) for idx in range(ngroups)]
 
     # _, iter_times, iter_objs = subgrad_ascent_util_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    # _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
+    _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
-                                                      rad_list, step_size, n_iter=1000)
-    _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
+    # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
+    #                                                   rad_list, step_size, n_iter=1000)
+    # _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
 
     # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
     # alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
