@@ -128,17 +128,17 @@ def get_samples(central_estimate, variances, dset_name, num_samples=100, noise_m
         std_devs = np.sqrt(variances)
 
         if paired:
-            # samples = [rng.normal(central_estimate, variances*noise_multiplier) for _ in range(num_samples)]
-            # left_only = []
-            # for s in samples:
-            #     left_only.append(central_estimate - np.abs(central_estimate - s))
-            # return left_only
-            first_half = [rng.normal(central_estimate, std_devs * noise_multiplier) for _ in
-                          range((num_samples // 2) + 1)]
-            second_half = []
-            for s in first_half:
-                second_half.append(2 * central_estimate - s)
-            return first_half + second_half
+            samples = [rng.normal(central_estimate, variances*noise_multiplier) for _ in range(num_samples)]
+            left_only = []
+            for s in samples:
+                left_only.append(central_estimate - np.abs(central_estimate - s))
+            return left_only
+            # first_half = [rng.normal(central_estimate, std_devs * noise_multiplier) for _ in
+            #               range((num_samples // 2) + 1)]
+            # second_half = []
+            # for s in first_half:
+            #     second_half.append(2 * central_estimate - s)
+            # return first_half + second_half
         else:
             return [rng.normal(central_estimate, std_devs * noise_multiplier) for _ in range(num_samples)]
 
