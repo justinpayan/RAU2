@@ -521,6 +521,8 @@ class UtilitarianAlternation():
         betas = None
         self.group_welfare = group_welfare
 
+        best = -np.inf
+        ctr = 0
         for iter in range(niters):
             start_time = time.time()
 
@@ -533,16 +535,24 @@ class UtilitarianAlternation():
 
             new_welfare = self.compute_welfare(allocs, betas, lamda)
 
-            if prev_welfare is None:
-                prev_welfare = new_welfare
-            else:
-                prev_welfare = welfare
-            welfare = new_welfare
-            if iter != 0 and np.abs(prev_welfare - welfare) < eps:
-                print("got welfare", welfare)
+            ctr += 1
+            if new_welfare > best:
+                ctr = 0
+                best = new_welfare
+            if ctr > 20:
+                print("got welfare", new_welfare)
                 break
-            self.iter_obj_vals.append(welfare)
-            print(f"Iter: {iter} Worst utilitarian welfare: {welfare}")
+
+            # if prev_welfare is None:
+            #     prev_welfare = new_welfare
+            # else:
+            #     prev_welfare = welfare
+            # welfare = new_welfare
+            # if iter != 0 and np.abs(prev_welfare - welfare) < eps:
+            #     print("got welfare", welfare)
+            #     break
+            self.iter_obj_vals.append(best)
+            print(f"Iter: {iter} Best worst-case utilitarian welfare: {best}")
         return welfare, allocs, betas, self.iter_timestamps, self.iter_obj_vals
 
     def optimize_a_beta(self):
@@ -1276,12 +1286,15 @@ def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         print("%s elapsed" % (time.time() - st))
         obj_val, worst_vs = get_worst_case_usw(group_allocs, mu_list, Sigma_list, rad_list)
 
+        ctr += 1
         if obj_val > global_opt_obj:
             global_opt_obj = obj_val
             global_opt_alloc = group_allocs
+            ctr = 0
         t += 1
 
-        converged = (np.abs(prev_obj_val - obj_val) < 1e-3)
+        # converged = (np.abs(prev_obj_val - obj_val) < 1e-3)
+        converged = (ctr > 20)
 
         prev_obj_val = obj_val
 
@@ -1290,11 +1303,11 @@ def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
         if t % 1 == 0:
             print("Step %d" % t)
-            print("Obj value: ", obj_val)
+            print("Obj value: ", global_opt_obj)
             print("%s elapsed" % (time.time() - st))
 
         iter_timestamps.append(time.time() - st)
-        iter_obj_vals.append(obj_val)
+        iter_obj_vals.append(global_opt_obj)
 
     return global_opt_alloc, iter_timestamps, iter_obj_vals
 
@@ -1368,12 +1381,15 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         print("%s elapsed" % (time.time() - st))
         obj_val, worst_vs, worst_group = get_worst_case_gesw(group_allocs, mu_list, Sigma_list, rad_list)
 
+        ctr += 1
         if obj_val > global_opt_obj:
             global_opt_obj = obj_val
             global_opt_alloc = group_allocs
+            ctr = 0
         t += 1
 
-        converged = (np.abs(prev_obj_val - obj_val) < 1e-3)
+        # converged = (np.abs(prev_obj_val - obj_val) < 1e-3)
+        converged = (ctr > 20)
 
         prev_obj_val = obj_val
 
@@ -1382,11 +1398,11 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
         if t % 1 == 0:
             print("Step %d" % t)
-            print("Obj value: ", obj_val)
+            print("Obj value: ", global_opt_obj)
             print("%s elapsed" % (time.time() - st))
 
         iter_timestamps.append(time.time() - st)
-        iter_obj_vals.append(obj_val)
+        iter_obj_vals.append(global_opt_obj)
 
     return global_opt_alloc, iter_timestamps, iter_obj_vals
 
@@ -1464,8 +1480,8 @@ def run():
     # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
     # alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
 
-    # utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
-    # _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
+    utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
+    _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
     #
     # print(iter_times, iter_objs)
 
