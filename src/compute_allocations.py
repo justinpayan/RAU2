@@ -214,7 +214,9 @@ def main(args):
             delta = conf_level
             if adv_method == "IQP":
                 adv_method = "ProjGD"
-            alloc, timestamps, obj_vals = solve_adv_gesw(central_estimate, variances**2, covs_lb, covs_ub, loads,
+            if variances is not None:
+                variances *= variances
+            alloc, timestamps, obj_vals = solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads,
                                                          rhs_bd_per_group[delta], coi_mask, groups, method=adv_method)
 
         if mode == "time" and timestamps is not None:
