@@ -452,7 +452,7 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
 
 
 class UtilitarianAlternation():
-    def __init__(self, mu_list, covs_lb_list, covs_ub_list, loads, Sigma_list, rad_list, coi_mask_list, n_iter=1000,
+    def __init__(self, mu_list, covs_lb_list, covs_ub_list, loads, Sigma_list, rad_list, coi_mask_list, n_iter=400,
                  integer=False):
 
         self.mu_list = mu_list
@@ -658,7 +658,7 @@ class UtilitarianAlternation():
 
 
 class ComputeUtilitarianQuadraticProj():
-    def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=1000):
+    def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=400):
 
         self.mu_list = mu_list
         self.Sigma_list = Sigma_list
@@ -910,7 +910,7 @@ class ComputeUtilitarianQuadraticProj():
 
 
 class ComputeGroupEgalitarianQuadraticProj():
-    def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=1000):
+    def __init__(self, mu_list, covs_lb_l, covs_ub_l, coi_mask_l, loads, Sigma_list, rad_list, step_size, n_iter=400):
 
         self.mu_list = mu_list
         self.Sigma_list = Sigma_list
@@ -1372,7 +1372,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
     t = 0
     converged = False
-    max_iter = 1000
+    max_iter = 400
 
     ctr = 0
 
@@ -1392,6 +1392,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         print("Computing worst case V matrix")
         print("%s elapsed" % (time.time() - st))
         obj_val, worst_vs, worst_group = get_worst_case_gesw(group_allocs, mu_list, Sigma_list, rad_list)
+        min_usw, worst_vs_usw = get_worst_case_usw(group_allocs, mu_list, Sigma_list, rad_list)
 
         ctr += 1
         if obj_val > global_opt_obj:
@@ -1406,7 +1407,8 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         prev_obj_val = obj_val
 
         rate = 1 / (t + 1)
-        group_allocs[worst_group] += rate * worst_vs[worst_group]
+        group_allocs[worst_group] += rate*3 * worst_vs[worst_group]
+        group_allocs = [a + rate * v for a, v in zip(group_allocs, worst_vs_usw)]
 
         if t % 1 == 0:
             print("Step %d" % t)
@@ -1477,17 +1479,17 @@ def run():
 
     rad_list = [rsquared for x in range(ngroups)]
 
-    Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
+    # Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
 
-    # Sigma_list = [np.random.uniform(0.1, 1, mu_list[idx].shape) for idx in range(ngroups)]
+    Sigma_list = [np.random.uniform(0.1, 1, mu_list[idx].shape) for idx in range(ngroups)]
 
     # _, iter_times, iter_objs = subgrad_ascent_util_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    # _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
+    _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
-                                                      rad_list, step_size, n_iter=1000)
-    _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
+    # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
+    #                                                   rad_list, step_size, n_iter=1000)
+    # _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
 
     # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
     # alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
