@@ -242,7 +242,7 @@ def solve_adv_usw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_p
                                          rhs_bd_per_group, coi_mask_l)
             _, group_allocs, _, timestamps, obj_vals = obj.iterative_optimization()
         elif method == "ProjGD":
-            step_size = 1e-1
+            step_size = 1
             obj = ComputeUtilitarianQuadraticProj(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads,
                                                   [v.flatten() for v in var_l], rhs_bd_per_group, step_size)
             group_allocs, _, _, timestamps, obj_vals = obj.gradient_descent()
@@ -273,7 +273,7 @@ def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_
                                                     rhs_bd_per_group, loads, covs_lb_l, covs_ub_l)
     else:
         if method == "ProjGD":
-            step_size = 1e-1
+            step_size = 1
             egalObject = ComputeGroupEgalitarianQuadraticProj(ce_l, covs_lb_l, covs_ub_l, coi_mask_l, loads,
                                                               [v.flatten() for v in var_l], rhs_bd_per_group, step_size)
             group_allocs, _, _, timestamps, obj_vals = egalObject.gradient_descent()
@@ -710,8 +710,8 @@ class ComputeUtilitarianQuadraticProj():
             params.append(self.A_tl[gdx])
             params.append(self.beta_tns[gdx])
 
-        self.optimizer = torch.optim.Adam(params, lr=self.step_size)
-        # self.optimizer = torch.optim.SGD(params, lr=self.step_size)
+        # self.optimizer = torch.optim.Adam(params, lr=self.step_size)
+        self.optimizer = torch.optim.SGD(params, lr=self.step_size)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
 
     def welfare(self):
@@ -962,8 +962,8 @@ class ComputeGroupEgalitarianQuadraticProj():
             params.append(self.A_tl[gdx])
             params.append(self.beta_tns[gdx])
 
-        self.optimizer = torch.optim.Adam(params, lr=self.step_size)
-        # self.optimizer = torch.optim.SGD(params, lr=self.step_size)
+        # self.optimizer = torch.optim.Adam(params, lr=self.step_size)
+        self.optimizer = torch.optim.SGD(params, lr=self.step_size)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
 
     def welfare(self):
