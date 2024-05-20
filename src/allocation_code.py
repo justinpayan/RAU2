@@ -964,9 +964,9 @@ class ComputeGroupEgalitarianQuadraticProj():
             params.append(self.A_tl[gdx])
             params.append(self.beta_tns[gdx])
 
-        # self.optimizer = torch.optim.Adam(params, lr=self.step_size)
-        self.optimizer = torch.optim.SGD(params, lr=self.step_size)
-        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
+        self.optimizer = torch.optim.Adam(params, lr=self.step_size)
+        # self.optimizer = torch.optim.SGD(params, lr=self.step_size)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
 
     def welfare(self):
         return get_worst_case_gesw(self.convert_to_numpy(self.A_tl),
@@ -1060,9 +1060,9 @@ class ComputeGroupEgalitarianQuadraticProj():
                 print("got welfare", new_welfare)
                 break
 
-            for g in self.optimizer.param_groups:
-                g['lr'] = 1/(i**(1/4) + 1)
-            # self.scheduler.step(best)
+            # for g in self.optimizer.param_groups:
+            #     g['lr'] = 1/(i**(1/4) + 1)
+            self.scheduler.step(best)
 
             self.obj_vals.append(best)
 
