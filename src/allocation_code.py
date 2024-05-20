@@ -1,3 +1,5 @@
+import copy
+
 import cvxpy as cp
 import numpy as np
 import torch
@@ -1403,7 +1405,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         ctr += 1
         if obj_val > global_opt_obj:
             global_opt_obj = obj_val
-            global_opt_alloc = group_allocs.copy()
+            global_opt_alloc = copy.deepcopy(group_allocs)
             ctr = 0
         t += 1
 
@@ -1491,7 +1493,7 @@ def run():
 
     # _, iter_times, iter_objs = subgrad_ascent_util_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
+    group_allocs, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
     # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
     #                                                   rad_list, step_size, n_iter=1000)
@@ -1504,6 +1506,9 @@ def run():
     # _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
     #
     # print(iter_times, iter_objs)
+    print(loads, covs)
+    for x in group_allocs:
+        print(np.sum(x, axis=0), np.sum(x, axis=1))
 
 
 if __name__ == '__main__':
