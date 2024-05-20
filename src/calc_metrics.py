@@ -22,7 +22,7 @@ def main(args):
 
     small_sample = dset_name.startswith("gauss") and alloc_type == "adv_gesw"
 
-    central_estimate, variances, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed, small_sample)
+    central_estimate, variances, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed, small_sample=small_sample)
 
     print("Loaded dataset %s, loading %s allocation. Conf level %.2f. Seed %d" % (dset_name, alloc_type, conf_level, seed), flush=True)
 
@@ -65,7 +65,6 @@ def main(args):
 
     value_samples = get_samples(central_estimate, variances, dset_name, num_samples=10000, noise_multiplier=noise_multiplier, seed=seed)
     print(value_samples[10][10, 10])
-
 
     for c in conf_levels:
         print("Calculating cvar usw", flush=True)
