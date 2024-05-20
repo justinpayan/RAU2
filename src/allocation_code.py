@@ -1258,7 +1258,7 @@ def get_worst_case_usw(group_allocs, group_mus, group_variances, rhs_bd_per_grou
 
         m.addConstr(((v - ce) * (1 / var) * (v - ce)).sum() <= rhs_bd ** 2)
 
-        m.addConstr(v >= 0)
+        # m.addConstr(v >= 0)
         obj_terms.append((a * v).sum())
         vs.append(v)
     obj = gp.quicksum(t for t in obj_terms)
