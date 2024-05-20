@@ -803,7 +803,7 @@ class ComputeUtilitarianQuadraticProj():
                 break
 
             for g in self.optimizer.param_groups:
-                g['lr'] = 1/(i**(1/2) + 1)
+                g['lr'] = 1/(i**(1/4) + 1)
             # self.scheduler.step(best)
 
             self.objective_vals.append(best)
@@ -1059,7 +1059,7 @@ class ComputeGroupEgalitarianQuadraticProj():
                 break
 
             for g in self.optimizer.param_groups:
-                g['lr'] = 1/(i**(1/2) + 1)
+                g['lr'] = 1/(i**(1/4) + 1)
             # self.scheduler.step(best)
 
             self.obj_vals.append(best)
@@ -1410,7 +1410,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
         prev_obj_val = obj_val
 
-        rate = 1 / (t**(1/2) + 1)
+        rate = 1 / (t**(1/4) + 1)
         group_allocs[worst_group] += rate*3 * worst_vs[worst_group]
         group_allocs = [a + rate * v for a, v in zip(group_allocs, worst_vs_usw)]
 
