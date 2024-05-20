@@ -1300,7 +1300,7 @@ def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         ctr += 1
         if obj_val > global_opt_obj:
             global_opt_obj = obj_val
-            global_opt_alloc = group_allocs
+            global_opt_alloc = group_allocs.copy()
             ctr = 0
         t += 1
 
@@ -1403,7 +1403,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         ctr += 1
         if obj_val > global_opt_obj:
             global_opt_obj = obj_val
-            global_opt_alloc = group_allocs
+            global_opt_alloc = group_allocs.copy()
             ctr = 0
         t += 1
 
