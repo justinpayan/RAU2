@@ -764,6 +764,7 @@ class ComputeUtilitarianQuadraticProj():
         loss_BGD = []
 
 
+        best = -np.inf
         prev_welfare = -np.inf
 
         ctr = 0
@@ -790,22 +791,22 @@ class ComputeUtilitarianQuadraticProj():
 
             self.timestamps.append(time.time() - start_time + self.timestamps[-1])
 
-            sum_w = self.welfare()
+            new_welfare = self.welfare()
             # sum_w = np.sum(welfares)
-            if np.abs(sum_w - prev_welfare) < 1e-4:
-                ctr += 1
-            else:
+
+            ctr += 1
+            if new_welfare > best:
                 ctr = 0
+                best = new_welfare
             if ctr > 20:
+                print("got welfare", new_welfare)
                 break
 
-            prev_welfare = sum_w
+            self.scheduler.step(best)
 
-            self.scheduler.step(sum_w)
+            self.objective_vals.append(best)
 
-            self.objective_vals.append(sum_w)
-
-            print(f'Iter: {i}, \tLoss: {loss.item()}, Welfare sum: {sum_w}')
+            print(f'Iter: {i}, \tLoss: {loss.item()}, Best welfare sum: {best}')
 
         return self.convert_to_numpy(self.A_tl), self.beta_tns, self.Lamda_tns, self.timestamps, self.objective_vals
 
@@ -1020,6 +1021,7 @@ class ComputeGroupEgalitarianQuadraticProj():
         prev_welfare = -np.inf
 
         ctr = 0
+        best = -np.inf
 
         for i in range(self.n_iter):
             st = time.time()
@@ -1043,21 +1045,22 @@ class ComputeGroupEgalitarianQuadraticProj():
 
             self.timestamps.append(time.time() - st + self.timestamps[-1])
 
-            worst_w = self.welfare()
-            # worst_w = np.min(welfares)
+            new_welfare = self.welfare()
             # sum_w = np.sum(welfares)
 
-            if np.abs(worst_w - prev_welfare) < 1e-4:
-                ctr += 1
-            else:
+            ctr += 1
+            if new_welfare > best:
                 ctr = 0
+                best = new_welfare
             if ctr > 20:
+                print("got welfare", new_welfare)
                 break
-            prev_welfare = worst_w
 
-            self.scheduler.step(worst_w)
-            print(f'Iter: {i}, \tLoss: {loss.item()} Worst welfare: {worst_w}')
-            self.obj_vals.append(worst_w)
+            self.scheduler.step(best)
+
+            self.obj_vals.append(best)
+
+            print(f'Iter: {i}, \tLoss: {loss.item()}, Best egal welfare: {best}')
 
         return self.convert_to_numpy(self.A_tl), self.beta_tns, self.Lamda_tns, self.timestamps, self.obj_vals
 
@@ -1475,15 +1478,15 @@ def run():
 
     # _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
-    #                                                   rad_list, step_size, n_iter=1000)
-    # _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
+    egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
+                                                      rad_list, step_size, n_iter=1000)
+    _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
 
     # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
     # alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
 
-    utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
-    _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
+    # utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
+    # _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
     #
     # print(iter_times, iter_objs)
 
