@@ -12,7 +12,7 @@ sbatch \
 --job-name=${JN} \
 --output=/mnt/nfs/scratch1/jpayan/logs/RAU2/${JN}_alloc.out \
 --error=/mnt/nfs/scratch1/jpayan/logs/RAU2/${JN}_alloc.err \
---mem=64G \
+--mem=32G \
 --nodes=1 \
 --ntasks=1 \
 --time=00-04:00:00 \
