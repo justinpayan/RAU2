@@ -87,7 +87,7 @@ def main(args):
 
             print("Calculating adv gesw", flush=True)
             if dset_name.startswith("gauss"):
-                adv_gesw = compute_adv_gesw_ellipsoidal(allocation, central_estimate, variances, rhs_bd_per_group[delta], groups)
+                adv_gesw = compute_adv_gesw_ellipsoidal(allocation, central_estimate, variances**2, rhs_bd_per_group[delta], groups)
             else:
                 adv_gesw = compute_adv_gesw_linear(allocation, central_estimate, coi_mask, rhs_bd_per_group[delta], groups, a_val=a, b_val=b)
 
