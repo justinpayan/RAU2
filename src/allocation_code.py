@@ -953,7 +953,7 @@ class ComputeGroupEgalitarianQuadraticProj():
             Cg = self.coi_tns[gdx].flatten()
             term1 = torch.sum((Cg * (Ag/gsize - Bg)).flatten() * Vg.flatten())
             temp = (Cg * (Ag/gsize - Bg)).reshape(-1, 1)
-            term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx]))
+            term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-5))
             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx] ** 2
             w = (term1 + term2 + term3)
             welfares.append(w.detach().cpu().numpy())
@@ -975,7 +975,7 @@ class ComputeGroupEgalitarianQuadraticProj():
             term1 = torch.sum((Cg * (Ag/gsize - Bg)).flatten() * Vg.flatten())
             temp = (Cg * (Ag/gsize - Bg)).reshape(-1, 1)
             # print(temp)
-            term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx]))
+            term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-3))
             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx]
             # print(term1, term2, term3)
             # term = torch.exp(-1 * self.eta * (term1 + term2 + term3))
