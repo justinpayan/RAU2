@@ -1013,7 +1013,9 @@ class ComputeGroupEgalitarianQuadraticProj():
             # term_sum = term_sum + term
             terms[gdx] += term1 + term2[0, 0] + term3
             # print()
-        return -1 * 3 * torch.min(terms) - torch.sum(terms)
+        # return -1 * 3 * torch.min(terms) - torch.sum(terms)
+        sm = torch.nn.Softmin()
+        return -1 * torch.sum(sm(terms)*terms)
         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         # return -soft_min
 
@@ -1410,9 +1412,9 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
         prev_obj_val = obj_val
 
-        rate = 1 / (t**(1/10) + 1)
-        group_allocs[worst_group] += rate*3 * worst_vs[worst_group]
-        group_allocs = [a + rate * v for a, v in zip(group_allocs, worst_vs_usw)]
+        rate = 1 / (t + 1)**(1/4)
+        group_allocs[worst_group] += rate*(1-(1/(t+1))) * worst_vs[worst_group]
+        group_allocs = [a + rate * (1/(t+1)) * v for a, v in zip(group_allocs, worst_vs_usw)]
 
         if t % 1 == 0:
             print("Step %d" % t)
@@ -1483,23 +1485,23 @@ def run():
 
     rad_list = [rsquared for x in range(ngroups)]
 
-    # Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
+    Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
 
-    Sigma_list = [np.random.uniform(0.1, 1, mu_list[idx].shape) for idx in range(ngroups)]
+    # Sigma_list = [np.random.uniform(0.1, 1, mu_list[idx].shape) for idx in range(ngroups)]
 
     # _, iter_times, iter_objs = subgrad_ascent_util_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
     # _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
-    #                                                   rad_list, step_size, n_iter=1000)
-    # _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
+    egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
+                                                      rad_list, step_size, n_iter=1000)
+    _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
 
     # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
     # alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
 
-    utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
-    _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
+    # utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
+    # _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
     #
     # print(iter_times, iter_objs)
 
