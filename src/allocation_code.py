@@ -1343,7 +1343,7 @@ def get_worst_case_gesw(group_allocs, group_mus, group_variances, rhs_bd_per_gro
 
         m.addConstr(((v - ce) * (1 / var) * (v - ce)).sum() <= rhs_bd ** 2)
 
-        m.addConstr(v >= 0)
+        # m.addConstr(v >= 0)
         m.addConstr(aux_vars[gidx] == (a * v).sum() / grpsize)
 
         vs.append(v)
@@ -1352,7 +1352,16 @@ def get_worst_case_gesw(group_allocs, group_mus, group_variances, rhs_bd_per_gro
     m.optimize()
     m.setParam('OutputFlag', 1)
 
-    worst_group = np.argmin([av for av in aux_vars])
+    # try:
+    #     gesw_value = gesw.X
+    #     v_values = [v.X for v in vs]
+    #     worst_group = np.argmin([av for av in aux_vars])
+    # except:
+    #     gesw_value = 0
+    #     v_values = group_variances
+    #     worst_group = sorted(range(ngroups), key=lambda x: random.random())[0]
+
+
 
     return gesw.X, [v.X for v in vs], worst_group
 
