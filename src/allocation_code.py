@@ -1029,7 +1029,7 @@ class ComputeGroupEgalitarianQuadraticProj():
             self.timestamps.append(time.time() - st)
             self.obj_vals.append(worst_w)
 
-        return self.A_tl, self.beta_tns, self.Lamda_tns, self.timestamps, self.obj_vals
+        return self.convert_to_numpy(self.A_tl), self.beta_tns, self.Lamda_tns, self.timestamps, self.obj_vals
 
     def convert_to_numpy(self, X_list):
         n = len(X_list)
@@ -1314,9 +1314,9 @@ def get_worst_case_gesw(group_allocs, group_mus, group_variances, rhs_bd_per_gro
     m.optimize()
     m.setParam('OutputFlag', 1)
 
-    worst_group = np.argmin([av.X for av in aux_vars])
+    worst_group = np.argmin([av for av in aux_vars])
 
-    return gesw.getValue(), [v.X for v in vs], worst_group
+    return gesw.X, [v.X for v in vs], worst_group
 
 
 def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_list, rad_list):
@@ -1329,10 +1329,14 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
     converged = False
     max_iter = 1000
 
+    ctr = 0
+
     iter_timestamps = []
     iter_obj_vals = []
 
     st = time.time()
+
+    prev_obj_val = -np.inf
 
     while not converged and t < max_iter:
         # Project to the set of feasible allocations
@@ -1425,9 +1429,13 @@ def run():
 
     rad_list = [rsquared for x in range(ngroups)]
 
-    Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
+    # Sigma_list = [np.random.uniform(0.1, 1, len(mu_list[idx].flatten())) for idx in range(ngroups)]
 
+    Sigma_list = [np.random.uniform(0.1, 1, mu_list[idx].shape) for idx in range(ngroups)]
 
+    # _, iter_times, iter_objs = subgrad_ascent_util_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
+
+    _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
     # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
     #                                                   rad_list, step_size, n_iter=1000)
@@ -1438,7 +1446,8 @@ def run():
 
     # utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
     # _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
-    # print(iter_times, iter_objs)
+
+    print(iter_times, iter_objs)
 
 
 if __name__ == '__main__':
