@@ -712,7 +712,7 @@ class ComputeUtilitarianQuadraticProj():
 
         # self.optimizer = torch.optim.Adam(params, lr=self.step_size)
         self.optimizer = torch.optim.SGD(params, lr=self.step_size)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
+        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
 
     def welfare(self):
         return get_worst_case_usw(self.convert_to_numpy(self.A_tl),
@@ -802,7 +802,9 @@ class ComputeUtilitarianQuadraticProj():
                 print("got welfare", new_welfare)
                 break
 
-            self.scheduler.step(best)
+            for g in self.optimizer.param_groups:
+                g['lr'] = 1/(i**(1/2) + 1)
+            # self.scheduler.step(best)
 
             self.objective_vals.append(best)
 
@@ -964,7 +966,7 @@ class ComputeGroupEgalitarianQuadraticProj():
 
         # self.optimizer = torch.optim.Adam(params, lr=self.step_size)
         self.optimizer = torch.optim.SGD(params, lr=self.step_size)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
+        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'max')
 
     def welfare(self):
         return get_worst_case_gesw(self.convert_to_numpy(self.A_tl),
@@ -1056,7 +1058,9 @@ class ComputeGroupEgalitarianQuadraticProj():
                 print("got welfare", new_welfare)
                 break
 
-            self.scheduler.step(best)
+            for g in self.optimizer.param_groups:
+                g['lr'] = 1/(i**(1/2) + 1)
+            # self.scheduler.step(best)
 
             self.obj_vals.append(best)
 
@@ -1485,7 +1489,7 @@ def run():
 
     # _, iter_times, iter_objs = subgrad_ascent_util_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
-    _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
+    # _, iter_times, iter_objs = subgrad_ascent_egal_ellipsoid(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list)
 
     # egalObject = ComputeGroupEgalitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list,
     #                                                   rad_list, step_size, n_iter=1000)
@@ -1494,8 +1498,8 @@ def run():
     # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
     # alloc, _, _, iter_times, iter_objs = Util.iterative_optimization(group_welfare=False)
 
-    # utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
-    # _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
+    utilObject = ComputeUtilitarianQuadraticProj(mu_list, covs_list, covs_list, coi_list, loads_list, Sigma_list, rad_list, step_size, n_iter=1000)
+    _, _, _, iter_times, iter_objs = utilObject.gradient_descent()
     #
     # print(iter_times, iter_objs)
 
