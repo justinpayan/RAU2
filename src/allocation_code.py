@@ -1011,7 +1011,7 @@ class ComputeGroupEgalitarianQuadraticProj():
             # term_sum = term_sum + term
             terms[gdx] += term1 + term2[0, 0] + term3
             # print()
-        return -1 * torch.min(terms)
+        return -1 * 3 * torch.min(terms) - torch.sum(terms)
         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         # return -soft_min
 
