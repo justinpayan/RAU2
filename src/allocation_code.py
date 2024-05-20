@@ -1276,6 +1276,8 @@ def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
     st = time.time()
 
+    ctr = 0
+
     while not converged and t < max_iter:
         # Project to the set of feasible allocations
         print("Projecting to feasible: %s elapsed" % (time.time() - st))
