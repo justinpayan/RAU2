@@ -1272,7 +1272,7 @@ def subgrad_ascent_util_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
     t = 0
     converged = False
-    max_iter = 1000
+    max_iter = 400
 
     iter_timestamps = []
     iter_obj_vals = []
