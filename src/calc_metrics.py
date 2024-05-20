@@ -20,7 +20,8 @@ def main(args):
     data_dir = os.path.join(base_dir, "data")
     output_dir = os.path.join(base_dir, "outputs")
 
-    small_sample = dset_name.startswith("gauss") and alloc_type == "adv_gesw"
+    # small_sample = dset_name.startswith("gauss") and alloc_type == "adv_gesw"
+    small_sample = False
 
     central_estimate, variances, covs_lb, covs_ub, loads, groups, coi_mask, rhs_bd_per_group = load_dset(dset_name, data_dir, seed, small_sample=small_sample)
 
