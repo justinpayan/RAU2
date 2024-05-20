@@ -172,7 +172,7 @@ def compute_adv_gesw_ellipsoidal(allocation, central_estimate, variances, rhs_bd
         v = m.addMVar(ce.shape)
 
         m.addConstr(((v - ce)*(1/var)*(v-ce)).sum() <= rhs_bd**2)
-        m.addConstr(v >= 0)
+        # m.addConstr(v >= 0)
         m.addConstr(aux_vars[gidx] == (a * v).sum()/grpsize)
 
     m.addConstr(gesw == gp.min_(aux_vars))
