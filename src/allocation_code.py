@@ -564,6 +564,7 @@ class EgalitarianAlternation():
                 break
 
             print(f"Iter: {iter} Best egalitarian welfare: {best}")
+            print("Lambdas are ", self.lamda)
         return welfare, allocs, betas, self.iter_timestamps, self.iter_obj_vals
 
 
