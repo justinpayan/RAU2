@@ -212,8 +212,8 @@ def main(args):
 
         elif alloc_type == "adv_gesw":
             delta = conf_level
-            # if adv_method == "IQP":
-            #     adv_method = "SubgradAsc"
+            if adv_method == "IQP":
+                adv_method = "SubgradAsc"
             # if variances is not None:
             #     variances *= variances
             alloc, timestamps, obj_vals = solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads,
