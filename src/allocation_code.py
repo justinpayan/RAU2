@@ -509,9 +509,6 @@ class EgalitarianAlternation():
 
         return lamdas
 
-
-
-
     def compute_welfare(self, allocs, betas, lamdas):
         return get_worst_case_gesw(allocs,
                                    self.mu_list,
@@ -566,7 +563,7 @@ class EgalitarianAlternation():
                 print("got welfare", welfare)
                 break
 
-            print(f"Iter: {iter} Utilitarian welfare: {welfare}")
+            print(f"Iter: {iter} Best egalitarian welfare: {best}")
         return welfare, allocs, betas, self.iter_timestamps, self.iter_obj_vals
 
 
