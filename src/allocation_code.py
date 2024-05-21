@@ -1414,9 +1414,9 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
         prev_obj_val = obj_val
 
-        rate = 10 / ((t + 1)**(1/4))
-        group_allocs[worst_group] += rate*(1-(1/((t+1)**(1/4)))) * worst_vs[worst_group]
-        group_allocs = [a + rate * (1/((t+1)**(1/4))) * v for a, v in zip(group_allocs, worst_vs_usw)]
+        rate = 10 / ((t + 1)**(1/2))
+        group_allocs[worst_group] += rate*(1-(1/((t+1)**(1/2)))) * worst_vs[worst_group]
+        group_allocs = [a + rate * (1/((t+1)**(1/2))) * v for a, v in zip(group_allocs, worst_vs_usw)]
 
         if t % 1 == 0:
             print("Step %d" % t)
