@@ -1570,16 +1570,16 @@ def get_worst_case_gesw(group_allocs, group_mus, group_variances, rhs_bd_per_gro
     m.optimize()
     m.setParam('OutputFlag', 1)
 
-    # try:
-    #     gesw_value = gesw.X
-    #     v_values = [v.X for v in vs]
-    worst_group = np.argmin([av for av in aux_vars])
-    # except:
-    #     gesw_value = 0
-    #     v_values = group_variances
-    #     worst_group = sorted(range(ngroups), key=lambda x: random.random())[0]
+    try:
+        gesw_value = gesw.X
+        v_values = [v.X for v in vs]
+        worst_group = np.argmin([av for av in aux_vars])
+    except:
+        gesw_value = 0
+        v_values = group_variances
+        worst_group = sorted(range(ngroups), key=lambda x: random.random())[0]
 
-    return gesw.X, [v.X for v in vs], worst_group
+    return gesw_value, v_values, worst_group
 
 
 def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_list, rad_list):
