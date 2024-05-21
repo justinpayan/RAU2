@@ -1380,7 +1380,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
 
     t = 0
     converged = False
-    max_iter = 400
+    max_iter = 3000
 
     ctr = 0
 
