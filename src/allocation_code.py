@@ -640,6 +640,11 @@ class EgalitarianAlternation():
         # model.setParam('MIPGap', 0.0)
 
         model.optimize()
+
+        if model.status != gp.GRB.OPTIMAL:
+            model.setParam('BarHomogeneous', 1)
+            model.optimize()
+
         print("objective", model.ObjVal)
 
         allocs = []
@@ -1569,12 +1574,14 @@ def get_worst_case_gesw(group_allocs, group_mus, group_variances, rhs_bd_per_gro
     try:
         gesw_value = gesw.X
         v_values = [v.X for v in vs]
-        worst_group = np.argmin([av for av in aux_vars])
+        worst_group = np.argmin([aux_vars[av_idx].X for av_idx in range(ngroups)])
     except:
         gesw_value = 0
         v_values = group_variances
         worst_group = sorted(range(ngroups), key=lambda x: random.random())[0]
 
+    print("AUX_VARS: ", aux_vars)
+    print("GROUP VALUES: ", [aux_vars[av_idx].X for av_idx in range(ngroups)])
     return gesw_value, v_values, worst_group
 
 
@@ -1661,8 +1668,6 @@ def softtime(model, where):
 
 
 def run():
-    n = np.random.randint(10, 100)
-
     n_reviewers = 10
     n_papers = 10
     n = n_reviewers * n_papers
