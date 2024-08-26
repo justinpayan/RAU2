@@ -148,12 +148,20 @@ def solve_cvar_usw_gauss(mu_matrix, sigma_matrix, covs_lb, covs_ub, loads, conf_
 
     aux = m.addVar(lb=0)
 
+    # m.addConstr(aux ** 2 == (alloc * sigma_matrix * alloc).sum())
+
+    # frac = norm.pdf(norm.ppf(conf_level)) / (1 - conf_level)
+    # obj = (alloc * mu_matrix).sum() - frac * aux
+    # m.setObjective(obj, GRB.MAXIMIZE)
+
+    # m.setParam("NonConvex", 2)
+    m.setParam("NonConvex", 2)
+
     m.addConstr(aux ** 2 == (alloc * sigma_matrix * alloc).sum())
 
     frac = norm.pdf(norm.ppf(conf_level)) / (1 - conf_level)
     obj = (alloc * mu_matrix).sum() - frac * aux
     m.setObjective(obj, GRB.MAXIMIZE)
-
     m.optimize()
 
     return alloc.x
@@ -559,7 +567,7 @@ class EgalitarianAlternation():
             #     print("got welfare", welfare)
             #     break
 
-            if ctr > 20:
+            if ctr > 2:
                 print("got welfare", welfare)
                 break
 
@@ -752,7 +760,7 @@ class UtilitarianAlternation():
             if new_welfare > best:
                 ctr = 0
                 best = new_welfare
-            if ctr > 20:
+            if ctr > 2:
                 print("got welfare", new_welfare)
                 break
 
