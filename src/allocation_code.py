@@ -466,7 +466,8 @@ def compute_group_egal_linear(a_l, b_l, phat_l, C_l, rhs_bd_per_group, loads, co
 
 
 class EgalitarianAlternation():
-    def __init__(self, mu_list,  covs_lb_list,covs_ub_list, loads, Sigma_list, rad_list, n_iter=1000, integer=False,group_welfare=False):
+    def __init__(self, mu_list, covs_lb_list, covs_ub_list, loads, Sigma_list, rad_list, n_iter=1000, integer=False,
+                 group_welfare=False):
 
         self.mu_list = mu_list
         self.Sigma_list = Sigma_list
@@ -476,24 +477,22 @@ class EgalitarianAlternation():
         self.loads = loads
         self.n_iter = n_iter
         self.integer = integer
-        self.group_welfare=group_welfare
+        self.group_welfare = group_welfare
 
         # For logging
         self.iter_timestamps = [0.0]
         self.iter_obj_vals = []
 
-
         self.ngroups = len(self.mu_list)
         self.nA_list = []
         self.nI_list = []
         for idx in range(self.ngroups):
-
             nA = self.mu_list[idx].shape[0]
             nI = self.mu_list[idx].shape[1]
             self.nA_list.append(nA)
             self.nI_list.append(nI)
 
-        self.lamda = np.random.randint(1,2,self.ngroups)
+        self.lamda = np.random.randint(1, 2, self.ngroups)
         self.betas = None
 
     def optimize_lambda(self, allocs, betas):
@@ -502,14 +501,14 @@ class EgalitarianAlternation():
             A = allocs[gdx].flatten()
             beta = betas[gdx].flatten()
             n_items = allocs[gdx].shape[1]
-            if self.group_welfare==True:
-                temp = (((1.0)/(n_items))*A- beta).reshape(1,-1)
+            if self.group_welfare == True:
+                temp = (((1.0) / (n_items)) * A - beta).reshape(1, -1)
             else:
-                temp = (A- beta).reshape(1,-1)
+                temp = (A - beta).reshape(1, -1)
 
-            x = np.sum((temp.flatten()**2)*self.Sigma_list[gdx].flatten())
-            y = 4*(self.rad_list[gdx]**2) + 1e-10
-            lamda = np.abs(np.sqrt(x/(y)))
+            x = np.sum((temp.flatten() ** 2) * self.Sigma_list[gdx].flatten())
+            y = 4 * (self.rad_list[gdx] ** 2) + 1e-10
+            lamda = np.abs(np.sqrt(x / (y)))
 
             lamdas.append(lamda)
         lamdas = np.array(lamdas)
@@ -523,21 +522,12 @@ class EgalitarianAlternation():
                                    [np.reshape(self.Sigma_list[gidx], allocs[gidx].shape) for gidx in
                                     range(self.ngroups)],
                                    self.rad_list)[0]
-        # welfare_util=0.0
-        # for gdx in range(self.ngroups):
-        #     A = allocs[gdx].flatten()
-        #     beta =betas[gdx].flatten()
-        #     lamda = lamdas[gdx]
-        #     temp = (A-beta).reshape(1,-1)
-        #     welfare = np.dot((A-beta),self.mu_list[gdx].flatten()) - np.sum((temp.flatten()**2)*self.Sigma_list[gdx].flatten())/(4*lamda) - lamda*(self.rad_list[gdx]**2)
-        #     welfare_util+= welfare
-        # return welfare_util
 
     def iterative_optimization(self, niters=1000, eps=1e-5):
-        welfare=None
-        prev_welfare=None
-        allocs=None
-        betas=None
+        welfare = None
+        prev_welfare = None
+        allocs = None
+        betas = None
         best = -np.inf
 
         for iter in range(niters):
@@ -549,7 +539,7 @@ class EgalitarianAlternation():
 
             self.iter_timestamps.append(time.time() - st + self.iter_timestamps[-1])
 
-            new_welfare = self.compute_welfare(allocs,betas,lamda)
+            new_welfare = self.compute_welfare(allocs, betas, lamda)
             if prev_welfare is None:
                 prev_welfare = new_welfare
             else:
@@ -567,7 +557,7 @@ class EgalitarianAlternation():
             #     print("got welfare", welfare)
             #     break
 
-            if ctr > 2:
+            if ctr > 20:
                 print("got welfare", welfare)
                 break
 
@@ -575,15 +565,14 @@ class EgalitarianAlternation():
             print("Lambdas are ", self.lamda)
         return welfare, allocs, betas, self.iter_timestamps, self.iter_obj_vals
 
-
     def optimize_a_beta(self):
         ngroups = len(self.mu_list)
         beta_list = []
         alloc_list = []
-        zeta_list=[]
+        zeta_list = []
         model = gp.Model()
 
-        t = model.addVar(lb=-gp.GRB.INFINITY,ub=gp.GRB.INFINITY,vtype=gp.GRB.CONTINUOUS,name='t')
+        t = model.addVar(lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name='t')
 
         for gdx in range(ngroups):
             tpms = np.array(self.mu_list[gdx])
@@ -592,21 +581,16 @@ class EgalitarianAlternation():
 
             assert (np.all(self.covs_ub_list[gdx] <= n_reviewers))
 
-
             num = int(n_reviewers * n_papers)
-
 
             beta_g = model.addMVar(num, lb=0, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="beta" + str(gdx))
 
-            zeta_g = model.addMVar(num, lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="zeta" + str(gdx))
-
-
-
-            # temp_g = model.addMVar(num, lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS, name="temp" + str(gdx))
+            zeta_g = model.addMVar(num, lb=-gp.GRB.INFINITY, ub=gp.GRB.INFINITY, vtype=gp.GRB.CONTINUOUS,
+                                   name="zeta" + str(gdx))
 
             beta_list.append(beta_g)
-            # temp_list.append(temp_g)
-            if self.integer == True:
+
+            if self.integer:
                 alloc_g = model.addMVar(num, lb=0, ub=1, vtype=gp.GRB.INTEGER, name="alloc" + str(gdx))
             else:
                 alloc_g = model.addMVar(num, lb=0, ub=1, vtype=gp.GRB.CONTINUOUS, name="alloc" + str(gdx))
@@ -621,31 +605,34 @@ class EgalitarianAlternation():
             covs_ub = self.covs_ub_list[gdx]
             covs_lb = self.covs_lb_list[gdx]
 
-            model.addConstrs(gp.quicksum(alloc_g[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
-                             range(n_items))
+            model.addConstrs(
+                gp.quicksum(alloc_g[jdx * n_items + idx] for jdx in range(n_agents)) <= covs_ub[idx] for idx in
+                range(n_items))
 
-            model.addConstrs(gp.quicksum(alloc_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
-                             range(n_items))
+            model.addConstrs(
+                gp.quicksum(alloc_g[jdx * n_items + idx] for jdx in range(n_agents)) >= covs_lb[idx] for idx in
+                range(n_items))
 
-            if self.group_welfare==True:
-                model.addConstr(zeta_g == ((1.0) / (n_items)) * alloc_g - beta_g)
-
-
+            if self.group_welfare:
+                model.addConstr(zeta_g == (1.0 / n_items) * alloc_g - beta_g)
             else:
-                model.addConstr(zeta_g == ( alloc_g - beta_g))
-
+                model.addConstr(zeta_g == (alloc_g - beta_g))
 
         load_sum = model.addMVar(self.loads.size, lb=0, ub=gp.GRB.INFINITY, obj=0.0, vtype=gp.GRB.CONTINUOUS,
                                  name='load_sum')
 
         model.addConstrs(load_sum[idx] == gp.quicksum(
-            alloc_list[gdx][idx * self.mu_list[gdx].shape[1]:(idx + 1) * (self.mu_list[gdx].shape[1])].sum() for gdx in range(ngroups))
+            alloc_list[gdx][idx * self.mu_list[gdx].shape[1]:(idx + 1) * (self.mu_list[gdx].shape[1])].sum() for gdx in
+            range(ngroups))
                          for idx in range(self.loads.size))
 
-        model.addConstr(load_sum <= self.loads,name='load_constr')
+        model.addConstr(load_sum <= self.loads, name='load_constr')
         model.addConstrs((zeta_list[gdx]) @ self.mu_list[gdx].flatten() -
-                   gp.quicksum((zeta_list[gdx][jdx] * self.Sigma_list[gdx][jdx]* zeta_list[gdx][jdx])*(1/(4*self.lamda[gdx])) for jdx in range(len(self.Sigma_list[gdx])))  -  self.lamda[gdx]*(self.rad_list[gdx]**2) >=t for
-                                   gdx in range(ngroups))
+                         gp.quicksum((zeta_list[gdx][jdx] * self.Sigma_list[gdx][jdx] * zeta_list[gdx][jdx]) * (
+                                     1 / (4 * self.lamda[gdx]))
+                                     for jdx in range(len(self.Sigma_list[gdx]))) -
+                         self.lamda[gdx] * (self.rad_list[gdx] ** 2) >= t
+                         for gdx in range(ngroups))
 
         model.setObjective(t, gp.GRB.MAXIMIZE)
         model.setParam('OutputFlag', 1)
@@ -843,7 +830,7 @@ class UtilitarianAlternation():
         model.setObjective(gp.quicksum((zeta_list[gdx]) @ self.mu_list[gdx].flatten() -
                                        gp.quicksum(
                                            zeta_list[gdx][jdx] * self.Sigma_list[gdx][jdx] * zeta_list[gdx][jdx] * (
-                                                       1 / (4 * self.lamda[gdx])) for jdx in
+                                                   1 / (4 * self.lamda[gdx])) for jdx in
                                            range(len(self.Sigma_list[gdx]))) - self.lamda[gdx] * self.rad_list[gdx] ** 2
                                        for
                                        gdx in range(ngroups)), gp.GRB.MAXIMIZE)
@@ -984,7 +971,6 @@ class ComputeUtilitarianQuadraticProj():
     def gradient_descent(self):
         loss_BGD = []
 
-
         best = -np.inf
         prev_welfare = -np.inf
 
@@ -1024,7 +1010,7 @@ class ComputeUtilitarianQuadraticProj():
                 break
 
             for g in self.optimizer.param_groups:
-                g['lr'] = 1/(i**(1/4) + 1)
+                g['lr'] = 1 / (i ** (1 / 4) + 1)
             # self.scheduler.step(best)
 
             self.objective_vals.append(best)
@@ -1192,7 +1178,8 @@ class ComputeGroupEgalitarianQuadraticProj():
     def welfare(self):
         return get_worst_case_gesw(self.convert_to_numpy(self.A_tl),
                                    self.convert_to_numpy(self.mu_list),
-                                   [np.reshape(self.Sigma_list[gidx], self.A_tl[gidx].shape) for gidx in range(self.ngroups)],
+                                   [np.reshape(self.Sigma_list[gidx], self.A_tl[gidx].shape) for gidx in
+                                    range(self.ngroups)],
                                    self.rad_list)[0]
         # welfares = []
         # for gdx in range(self.ngroups):
@@ -1223,8 +1210,8 @@ class ComputeGroupEgalitarianQuadraticProj():
             Vg = self.mu_tl[gdx].flatten()
             Cg = self.coi_tns[gdx].flatten()
             Sigma_g = self.sigma_tns[gdx]
-            term1 = torch.sum((Cg * (Ag/gsize - Bg)).flatten() * Vg.flatten())
-            temp = (Cg * (Ag/gsize - Bg)).reshape(-1, 1)
+            term1 = torch.sum((Cg * (Ag / gsize - Bg)).flatten() * Vg.flatten())
+            temp = (Cg * (Ag / gsize - Bg)).reshape(-1, 1)
             # print(temp)
             term2 = -(torch.mm(torch.mm(temp.t(), Sigma_g), temp)) / (4 * (self.Lamda_tns[gdx] + 1e-3))
             term3 = -self.Lamda_tns[gdx] * self.rad_list[gdx]
@@ -1236,7 +1223,7 @@ class ComputeGroupEgalitarianQuadraticProj():
             # print()
         # return -1 * 3 * torch.min(terms) - torch.sum(terms)
         sm = torch.nn.Softmin()
-        return -1 * torch.sum(sm(terms)*terms)
+        return -1 * torch.sum(sm(terms) * terms)
         # soft_min = (-1.0 / self.eta) * torch.log((1.0 / self.ngroups) * term_sum)
         # return -soft_min
 
@@ -1634,7 +1621,7 @@ def subgrad_ascent_egal_ellipsoid(mu_list, covs_lb_l, covs_ub_l, loads, Sigma_li
         prev_obj_val = obj_val
 
         rate = 1 / (t + 1)
-        group_allocs[worst_group] += rate*worst_vs[worst_group]
+        group_allocs[worst_group] += rate * worst_vs[worst_group]
         # group_allocs[worst_group] += rate*(1-(1/((t+1)**(1/2)))) * worst_vs[worst_group]
         # group_allocs = [a + rate * (1/((t+1)**(1/2))) * v for a, v in zip(group_allocs, worst_vs_usw)]
 
@@ -1720,7 +1707,7 @@ def run():
     # _, _, _, iter_times, iter_objs = egalObject.gradient_descent()
 
     egalObject = EgalitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list,
-                                                    rad_list, n_iter=1000)
+                                        rad_list, n_iter=1000)
     w, group_allocs, _, iter_times, iter_objs = egalObject.iterative_optimization()
 
     # Util = UtilitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list, rad_list, coi_list, integer=False)
