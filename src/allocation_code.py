@@ -637,13 +637,13 @@ class EgalitarianAlternation():
         model.setObjective(t, gp.GRB.MAXIMIZE)
         model.setParam('OutputFlag', 1)
 
-        # model.setParam('MIPGap', 0.0)
+        model.setParam('MIPGap', 0.0001)
 
         model.optimize()
 
         print("MODEL STATUS ", model.status)
 
-        if model.status != gp.GRB.OPTIMAL:
+        if model.status != gp.GRB.OPTIMAL and model.status != gp.GRB.SUBOPTIMAL:
             model.setParam('BarHomogeneous', 1)
             model.optimize()
 
