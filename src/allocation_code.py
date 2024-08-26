@@ -637,6 +637,7 @@ class EgalitarianAlternation():
         model.setObjective(t, gp.GRB.MAXIMIZE)
         model.setParam('OutputFlag', 1)
 
+        model.setParam("NonConvex", 1)
         model.setParam('MIPGap', 0.0001)
 
         model.optimize()
