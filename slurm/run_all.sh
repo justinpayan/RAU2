@@ -35,7 +35,7 @@
 for SEED in {1..5}; do
   for DSET_NAME in "gauss_aamas1" "gauss_aamas2" "gauss_aamas3"; do
     for ALLOC_TYPE in "adv_gesw"; do
-      for CONF_LEVEL in 0.05 0.1 0.2 0.3; do
+      for CONF_LEVEL in 0.3; do
         ./submit_compute_allocations.sbatch ${DSET_NAME} ${ALLOC_TYPE} ${CONF_LEVEL} $SEED
         sleep .1
       done
