@@ -641,6 +641,8 @@ class EgalitarianAlternation():
 
         model.optimize()
 
+        print("MODEL STATUS ", model.status)
+
         if model.status != gp.GRB.OPTIMAL:
             model.setParam('BarHomogeneous', 1)
             model.optimize()
