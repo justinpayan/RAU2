@@ -292,7 +292,7 @@ def solve_adv_gesw(central_estimate, variances, covs_lb, covs_ub, loads, rhs_bd_
                                                                                rhs_bd_per_group)
         elif method == "IQP":
             egalObject = EgalitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [v.flatten() for v in var_l],
-                                                rhs_bd_per_group, n_iter=1000)
+                                                rhs_bd_per_group, n_iter=1000, group_welfare=True)
             _, group_allocs, _, timestamps, obj_vals = egalObject.iterative_optimization()
 
     # Stitch together group_allocs into a single allocation and return it
@@ -1881,7 +1881,7 @@ def run():
     # egalObject = EgalitarianAlternation(mu_list, covs_list, covs_list, loads_list, Sigma_list,
     #                                     rad_list, n_iter=1000)
     egalObject = EgalitarianAlternation(ce_l, covs_lb_l, covs_ub_l, loads, [v.flatten() for v in var_l],
-                                        rhs_bd_per_group[0.3], n_iter=1000)
+                                        rhs_bd_per_group[0.3], n_iter=1000, group_welfare=True)
     # egalObject = EgalitarianAlternation(ce_l, covs_lb_l, covs_ub_l, , var_l,
     #                                     rad_list, n_iter=1000)
     w, group_allocs, _, iter_times, iter_objs = egalObject.iterative_optimization()
